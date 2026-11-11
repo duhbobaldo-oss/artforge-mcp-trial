@@ -11,6 +11,8 @@
   <img src="docs/gallery/mobius-card.png" alt="ArtForge Möbius ribbon card with Arabic text" width="49%">
   <img src="docs/gallery/desert-oasis.png" alt="Desert oasis scene drawn by ArtForge" width="49%">
   <img src="docs/gallery/stone-house.png" alt="Stone cottage scene drawn by ArtForge" width="49%">
+  <img width="1200" height="1000" alt="ArtForge-Cartoon-Cabin" src="https://github.com/user-attachments/assets/e4b504a6-d0ab-4e43-a198-7f4e62247dbc" />
+  <img width="1024" height="1024" alt="ArtForge-Cabin-3D-from-Drawing" src="https://github.com/user-attachments/assets/b1a69b87-6c39-4550-9ced-8ab420a616e8" />
 </p>
 <p align="center"><sub>Sample works rendered by the ArtForge engine · نماذج من أعمال المكوّن</sub></p>
 
