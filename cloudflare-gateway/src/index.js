@@ -141,7 +141,7 @@ const McpHandler = {
       ctx.waitUntil(fetch(`${env.ORIGIN_URL}/health`).catch(() => {})); // start waking the engine early
       const requested = params?.protocolVersion;
       const protocolVersion = snapshot.protocolVersions.includes(requested) ? requested : snapshot.protocolVersions[0];
-      return rpcResult(id, { ...snapshot.initialize, protocolVersion, instructions: `${snapshot.initialize.instructions || ''}\nFor neural image generation use artforge_generate_image: submit once with a stable operationId, then poll get with jobId. The same workflow is available through artforge_tool_op generation.jobs.submit/get for cached clients. Generator: FLUX.2 Klein 4B on Cloudflare Workers AI; public output is a 256-512px raster with daily quotas.` });
+      return rpcResult(id, { ...snapshot.initialize, protocolVersion, instructions: `${snapshot.initialize.instructions || ''}\nFor draw-then-generate: create the drawing with artforge_create_design, then call artforge_generate_image action=submit with its documentId and a transformation prompt (for example a 3D cartoon). The actual owned drawing is passed as image 0 and its hash is reported in source. Poll action=get with jobId. Omit documentId for text-to-image. Cached clients can use artforge_tool_op generation.jobs.submit/get. Generator: FLUX.2 Klein 4B on Cloudflare Workers AI; public output is a 256-512px raster, not a 3D mesh, with daily quotas. Drawing references may wait for the renderer to wake.` });
     }
     if (method === 'tools/list') return rpcResult(id, { ...snapshot.toolsList, tools: [...snapshot.toolsList.tools, ...(env.IMAGE_GENERATION_ENABLED === '1' ? [GENERATION_TOOL] : [])] });
     if (method === 'prompts/list') return rpcResult(id, { prompts: [] });
@@ -162,9 +162,12 @@ const McpHandler = {
 
     if (method === 'tools/call') {
       if (params?.name === GENERATION_TOOL.name) return rpcResult(id, await handleGeneration(env, ctx, userId, params.arguments));
+      if (params?.name === 'artforge_tool_op' && ['generation.status','generation.generate'].includes(params.arguments?.op)) {
+        return rpcResult(id, await handleGeneration(env, ctx, userId, { ...(params.arguments.params || {}), action:params.arguments.op==='generation.status'?'status':'submit' }));
+      }
       if (params?.name === 'artforge_tool_op' && String(params.arguments?.op || '').startsWith('generation.jobs.')) {
         const action = params.arguments.op.slice('generation.jobs.'.length), p = { ...(params.arguments.params || {}) };
-        if (action === 'submit') { if(p.version!==1 || (p.overlays && (!Array.isArray(p.overlays)||p.overlays.length))) return toolError(id,'GENERATION_OVERLAYS_UNSUPPORTED','المسار العام يولّد صورة نقطية مستقلة.','Public generation returns an independent raster image.'); delete p.version;delete p.overlays; }
+        if (action === 'submit') { if(p.version!==1 || (p.overlays && (!Array.isArray(p.overlays)||p.overlays.length))) return toolError(id,'GENERATION_OVERLAYS_UNSUPPORTED','النتيجة صورة نقطية؛ أضف documentId لاستخدام الرسم مرجعًا.','The result is raster; pass documentId to use your drawing as reference.'); delete p.version;delete p.overlays; }
         return rpcResult(id, await handleGeneration(env, ctx, userId, { ...p, action: action === 'preview' ? 'get' : action }));
       }
       for (const { kind, id: resourceId } of collectIds(params?.arguments)) {

@@ -1172,7 +1172,7 @@
    {
     "name": "artforge_tool_op",
     "title": "Call any drawing tool operation",
-    "description": "Draw or edit a demo document with the documented primitive operations, optionally in a batch. Read document info or preview. Host-file operations and custom providers are unavailable.",
+    "description": "Draw or edit a demo document with the documented primitive operations, optionally in a batch. Read document info or preview. Host-file operations and custom providers are unavailable. Public draw-then-generate: use generation.jobs.submit with params {version:1,operationId,prompt,width:512,height:512,documentId}; the actual owned drawing is passed to FLUX, then poll generation.jobs.get with jobId. generation.status reports public capabilities.",
     "inputSchema": {
      "type": "object",
      "properties": {

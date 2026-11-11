@@ -12,12 +12,14 @@ class GenerativeImageAdapter {
     this.provider = options.provider || null;
     if (this.provider && !/^[A-Za-z0-9_-]{1,64}$/.test(this.provider.id || '')) throw fail('INVALID_GENERATION_PROVIDER');
     this.validatePng = options.validatePng;
+    this.resolveReference = options.resolveReference;
     this.timeoutMs = Math.max(1, Math.min(120000, options.timeoutMs || 30000));
     this.receipts = new Map();
   }
 
   status() {
     return { enabled: this.enabled, configured: Boolean(this.provider), provider: this.provider ? this.provider.id : null,
+      referenceInput: this.provider?.supportsReferenceImage === true ? 'documentId' : null,
       automaticRouting: false, retries: 0, idempotency: 'process-local; maximum 32 receipts; no cross-restart guarantee' };
   }
 
@@ -29,8 +31,17 @@ class GenerativeImageAdapter {
       || !Number.isInteger(request.width) || !Number.isInteger(request.height)
       || request.width < 1 || request.height < 1 || request.width > 4096 || request.height > 4096) throw fail('INVALID_GENERATION_REQUEST');
     if (signal?.aborted) throw fail('GENERATION_CANCELLED');
-    const input = Object.freeze({ prompt: request.prompt, width: request.width, height: request.height });
-    const fingerprint = crypto.createHash('sha256').update(JSON.stringify(input)).digest('hex');
+    let referenceImage;
+    if (request.documentId !== undefined) {
+      if (typeof request.documentId !== 'string' || !/^doc_[A-Za-z0-9_-]{1,96}$/.test(request.documentId)) throw fail('INVALID_GENERATION_REFERENCE');
+      if (this.provider.supportsReferenceImage !== true || typeof this.resolveReference !== 'function') throw fail('GENERATION_REFERENCE_UNSUPPORTED');
+      referenceImage = await this.resolveReference(request.documentId);
+    }
+    if (signal?.aborted) throw fail('GENERATION_CANCELLED');
+    const input = Object.freeze({ prompt: request.prompt, width: request.width, height: request.height,
+      ...(referenceImage ? { referenceImage } : {}) });
+    const fingerprint = crypto.createHash('sha256').update(JSON.stringify({ prompt: input.prompt, width: input.width, height: input.height,
+      ...(referenceImage ? { reference: { documentId: referenceImage.documentId, sha256: referenceImage.sha256 } } : {}) })).digest('hex');
     const existing = this.receipts.get(request.operationId);
     if (existing) {
       if (existing.fingerprint !== fingerprint) throw fail('GENERATION_OPERATION_CONFLICT');
@@ -65,7 +76,9 @@ class GenerativeImageAdapter {
           || bytes.readUInt32BE(16) !== input.width || bytes.readUInt32BE(20) !== input.height) throw fail('INVALID_GENERATION_IMAGE');
         try { await this.validatePng(bytes, input); } catch { throw fail('INVALID_GENERATION_IMAGE'); }
         return { bytes: Buffer.from(bytes), mimeType: 'image/png', width: input.width, height: input.height,
-          sha256: crypto.createHash('sha256').update(bytes).digest('hex'), source: { kind: 'generative-provider', provider: this.provider.id } };
+          sha256: crypto.createHash('sha256').update(bytes).digest('hex'), source: { kind: 'generative-provider', provider: this.provider.id,
+            ...(input.referenceImage ? { mode: 'image-to-image', referenceDocumentId: input.referenceImage.documentId,
+              referenceSha256: input.referenceImage.sha256, referenceWidth: input.referenceImage.width, referenceHeight: input.referenceImage.height } : {}) } };
       })()]);
     } finally {
       clearTimeout(timer);

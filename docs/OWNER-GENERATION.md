@@ -8,6 +8,12 @@ Create the ignored `artforge-mcp/data/owner-generation.json` with `enabled: true
 
 Call `artforge_tool_op` with `op: "generation.status"`, then `op: "generation.generate"` and params `operationId`, `prompt`, `width`, `height`. Use a stable operationId. Dimensions: 256–1024, multiples of 16. Exact text should be added with the existing editable text tools after generation, rather than requested from the image model.
 
+To draw then generate, add `documentId` for an existing accessible drawing. The
+actual Skia PNG is sent as `input_image_0`; the result reports `source.mode:
+"image-to-image"`, its reference ID and SHA256. `generation.status` advertises
+`referenceInput: "documentId"`. Use a new operationId when changing the drawing.
+See [the shared public/owner reference contract](GENERATION-REFERENCE.md).
+
 Local adapter receipts are process-local; the SQLite usage ledger survives restarts and refuses a previously reserved operation rather than repeating inference. A repeated request after restart can therefore return a provider error and does not recover an old image. The public asynchronous jobs provide durable retrieval and per-connection ownership. The local adapter returns a bounded PNG preview and does not create a saved document automatically.
 
 The local SQLite budget permits at most 900 estimated Neurons/day. This is separate from the public gateway's shared 900-Neuron budget. Cloudflare's account-level free allowance is also shared with any unrelated applications. No paid fallback or automatic inference retry is implemented.

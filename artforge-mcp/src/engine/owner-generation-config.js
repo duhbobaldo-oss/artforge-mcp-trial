@@ -14,8 +14,8 @@ function ownerGenerationConfig(dataDir, paths, dependencies = {}) {
     credentials: (dependencies.credentials || require('./wrangler-credentials').wranglerCredentials)(cfg.wranglerCli),
     canvasModule: dependencies.canvas || require('./paths').loadCanvasModule(paths.drawingTool),
     budgetDir: path.join(dataDir, 'cloudflare-budget') });
-  return { enabled: true, timeoutMs: 100000, provider: { id: provider.id,
-    generate: (input, context) => provider.generate({version:1, ...input, seed:7, operationId:context.operationId},
-      {signal:context.signal, jobId:'owner_'+crypto.createHash('sha256').update(context.operationId).digest('hex')}) } };
+  return { enabled: true, timeoutMs: 100000, provider: { id: provider.id, supportsReferenceImage: true,
+    generate: (input, context) => provider.generate({version:1, prompt:input.prompt, width:input.width, height:input.height, seed:7, operationId:context.operationId},
+      {signal:context.signal, referenceImage:input.referenceImage, jobId:'owner_'+crypto.createHash('sha256').update(context.operationId).digest('hex')}) } };
 }
 module.exports = { ownerGenerationConfig };

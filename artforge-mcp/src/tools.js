@@ -682,7 +682,7 @@ function buildTools(engine) {
     description:
       'Edit an existing design (object.update, draw.text, …). BATCH YOUR EDITS: op:"batch" with params:{documentId, ops:[{op, params}, …]} runs up to 2000 operations in ONE call '
       + '(documentId is filled into each op) and returns the updated preview image, so no separate export call is needed. Every separate call costs seconds of round trip; never send one shape per call. '
-      + 'Optional generation.status and generation.generate use the separately injected image adapter (disabled by default; MCP cannot enable it). '
+      + 'Optional generation.status and generation.generate use the separately injected image adapter (disabled by default; MCP cannot enable it). For draw-then-generate pass params:{operationId,prompt,width,height,documentId}; the existing drawing is rendered and sent as an actual reference image. source reports its document id and SHA256. A 3D look is a raster image, not a 3D mesh. '
       + 'DEV optional durable generation.jobs.status/submit/get/cancel/delete/preview use a separately owner-configured local worker; submit accepts GenerationSpec v1 (version,operationId,prompt,width,height,seed,overlays). Never pass owner, provider URLs or model paths. '
       + 'For connectors with cached schemas, op=design.plan forwards params to the same authoritative design planner, including sceneSpec; execute its returned planId with artforge_execute_design. '
       + 'Pass-through to the drawing tool operations API (document.info, object.update, draw.text, export.image, animation.addKey, ...). '

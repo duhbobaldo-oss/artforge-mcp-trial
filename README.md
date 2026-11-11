@@ -14,14 +14,26 @@
   <img width="1200" height="1000" alt="ArtForge-Cartoon-Cabin" src="https://github.com/user-attachments/assets/e4b504a6-d0ab-4e43-a198-7f4e62247dbc" />
   <img width="1024" height="1024" alt="ArtForge-Cabin-3D-from-Drawing" src="https://github.com/user-attachments/assets/b1a69b87-6c39-4550-9ced-8ab420a616e8" />
 </p>
-<p align="center"><sub>Sample works rendered by the ArtForge engine · نماذج من أعمال المكوّن</sub></p>
+<p align="center"><sub>Samples drawn or generated through ArtForge · نماذج من الرسم والتوليد عبر المكوّن. The cabin pair shows the original drawing and its actual image-to-image transformation from the owner installation (1024px); public generator output is limited to 512px. The final name underline was added with the drawing engine.</sub></p>
 
 
 ## مولّد الصور المدمج · Integrated image generator
 
 **ArtForge يتضمن مولّد صور عصبيًا مدمجًا يستخدم FLUX.2 Klein 4B من Black Forest Labs، ويشغّله Cloudflare Workers AI.** المولد ليس نموذجًا مدرّبًا من الصفر بواسطة OBR ولا يعمل على GPU خادم Render؛ يحافظ ArtForge على محرك Skia والقوالب والخطوط العربية ومسار التحرير القائم.
 
-The integrated generator uses **FLUX.2 Klein 4B**, hosted by **Cloudflare Workers AI**. The public MCP gateway exposes `artforge_generate_image` with asynchronous submit/get/cancel/delete actions, durable idempotency and connection-scoped ownership. It runs independently of Render cold starts.
+The integrated generator uses **FLUX.2 Klein 4B**, hosted by **Cloudflare Workers AI**. The public MCP gateway exposes `artforge_generate_image` with asynchronous submit/get/cancel/delete actions, durable idempotency and connection-scoped ownership. Text-only generation runs independently of Render cold starts; drawing-based generation first retrieves the actual owned drawing from the renderer.
+
+### ارسم ثم ولّد · Draw, then generate
+
+ارسم بمحرك ArtForge أولًا، ثم مرّر `documentId` إلى المولّد مع وصف التحويل. يستقبل FLUX **صورة الرسم الفعلية** في `input_image_0`، مثل تحويل المشهد الكرتوني إلى مظهر ثلاثي الأبعاد. تعرض النتيجة بصمة المرجع `source.referenceSha256` للتحقق. الرسم الأصلي لا يتغير؛ المظهر ثلاثي الأبعاد صورة نقطية وليس نموذج 3D قابلًا للتحرير.
+
+First create a drawing with `artforge_create_design`. Then submit its `documentId` to `artforge_generate_image`, alongside the transformation instruction. FLUX receives the actual renderer PNG as image 0, not just another description. Both the local owner adapter and the public gateway support this workflow. See [the reference contract](docs/GENERATION-REFERENCE.md).
+
+```json
+{"action":"submit","operationId":"cabin-3d-unique","documentId":"doc_example","prompt":"Transform image 0 into a warm 3D cartoon. Preserve its composition, two armchairs, fireplace and open book.","width":512,"height":512}
+```
+
+Poll `{"action":"get","jobId":"<returned jobId>"}` until `succeeded`. The drawing must belong to the same OAuth connection. References are reduced below 512px; exact text and geometry are not guaranteed. Cached clients can use `artforge_tool_op` with `op:"generation.jobs.submit"` and `params:{version:1,...}`.
 
 - الرابط العام / Public MCP: `https://artforge-mcp-gateway.obr432.workers.dev/mcp`.
 - المسار العام: صور نقطية 256–512px، حتى 3 طلبات لكل اتصال في اليوم UTC، وحصة يومية مشتركة مقدرة لا تتجاوز 900 Neurons. لا إعادة تلقائية للتوليد؛ تنتهي الصور المحفوظة بعد 24 ساعة.

@@ -45,6 +45,7 @@ function createMcpEngine(options) {
   });
   const generativeImages = new GenerativeImageAdapter(Object.assign({}, opts.generativeImages || require('./engine/owner-generation-config').ownerGenerationConfig(dataDir, paths), {
     validatePng: require('./engine/png-contract').validatePng,
+    resolveReference: documentId => require('./engine/generation-reference').documentReference(bridge, documentId),
   }));
   const artifacts = new (require('./engine/artifact-store').ArtifactStore)({dir:path.join(dataDir,'artifacts'),allowedRoots:opts.artifactRoots || [path.join(projectRoot,'outputs'),path.join(projectRoot,'dev-runtime'),path.join(paths.drawingTool,'data','exports')]});
   const generationJobs = new (require('./engine/generation-jobs').GenerationJobs)({

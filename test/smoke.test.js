@@ -45,6 +45,15 @@ test('health endpoint answers', async () => {
   assert.deepEqual(await res.json(), { ok: true });
 });
 
+test('public reference adapter can consume the shipped renderer MCP without new endpoints',async()=>{
+ const made=await rpc('tools/call',{name:'artforge_create_design',arguments:{prompt:'بطاقة بسيطة',headline:'مرجع',width:800,height:500,preview:false}});
+ assert.equal(made.body.result.isError,false);const documentId=payload(made.body.result).documentId;
+ const {resolveGenerationReference}=await import('../cloudflare-gateway/src/generation-reference.js');
+ const env={ORIGIN_URL:base,ORIGIN_TOKEN:'test-only-placeholder',DB:{prepare(){return{bind(id){assert.equal(id,documentId);return this;},async first(){return'alice';}}}}};
+ const ref=await resolveGenerationReference(env,'alice',documentId);
+ assert.ok(ref.width<512&&ref.height<512);assert.equal(ref.documentId,documentId);assert.match(ref.sha256,/^[a-f0-9]{64}$/);
+});
+
 test('MCP initialize and tools/list', async () => {
   const init = await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'smoke', version: '1' } });
   assert.equal(init.status, 200);

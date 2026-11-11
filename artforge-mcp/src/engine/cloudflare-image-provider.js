@@ -40,9 +40,14 @@ class CloudflareImageProvider {
     } catch (e) { this.db.exec('ROLLBACK'); throw e; }
     return neurons;
   }
-  async generate(request, { signal, jobId } = {}) {
+  async generate(request, { signal, jobId, referenceImage } = {}) {
     const spec = compileGenerationSpec(request);
     if (spec.width < 256 || spec.height < 256 || spec.width > 1024 || spec.height > 1024) throw error('CLOUDFLARE_DIMENSIONS');
+    if (referenceImage) {
+      if (referenceImage.mimeType !== 'image/png' || !Buffer.isBuffer(referenceImage.bytes) || referenceImage.bytes.length > 1536 * 1024
+        || ![referenceImage.width, referenceImage.height].every(n => Number.isInteger(n) && n > 0 && n < 512)) throw error('INVALID_GENERATION_REFERENCE');
+      try { validatePng(referenceImage.bytes, referenceImage); } catch { throw error('INVALID_GENERATION_REFERENCE'); }
+    }
     if (signal?.aborted) throw error('GENERATION_CANCELLED');
     let credentials;
     try { credentials = await this.credentials(); } catch { throw error('CLOUDFLARE_AUTH_REQUIRED'); }
@@ -55,6 +60,7 @@ class CloudflareImageProvider {
       if (signal?.aborted) controller.abort();
       const form = new FormData();
       form.append('prompt', spec.prompt); form.append('width', String(spec.width)); form.append('height', String(spec.height)); form.append('seed', String(spec.seed));
+      if (referenceImage) form.append('input_image_0', new Blob([referenceImage.bytes], { type: 'image/png' }), 'drawing.png');
       const response = await this.fetch(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/ai/run/${MODEL}`, {
         method: 'POST', headers: { Authorization: 'Bearer ' + credentials.token }, body: form, signal: controller.signal, redirect: 'error',
       });
