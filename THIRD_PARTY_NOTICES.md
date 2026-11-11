@@ -22,7 +22,7 @@ must not use the Reserved Font Names.
 | Package | Version | License | Notes |
 |---|---|---|---|
 | `@napi-rs/canvas` | 0.1.80 | MIT | Node-API binding to Google Skia |
-| `@napi-rs/canvas-<platform>` (one per OS/CPU, optional) | 0.1.80 | MIT | Prebuilt native binary; statically links **Skia** (BSD-3-Clause, آ© Google LLC) and ships ICU data `icudtl.dat` (Unicode License V3) |
+| `@napi-rs/canvas-<platform>` (one per OS/CPU, optional) | 0.1.80 | MIT | Prebuilt native binary; statically links **Skia** (BSD-3-Clause, © Google LLC) and ships ICU data `icudtl.dat` (Unicode License V3) |
 
 The core MCP server uses Node.js built-in modules. Optional image normalization reuses the existing canvas dependency. The public gateway uses `@cloudflare/workers-oauth-provider` 1.2.4 (MIT); its npm lockfile is included.
 
@@ -33,7 +33,7 @@ licenses). The image is not distributed from this repository.
 
 ## Sample images
 
-The original four images in `docs/gallery/` were rendered by the ArtForge engine and are آ© OBR Group, provided under the
+The original four images in `docs/gallery/` were rendered by the ArtForge engine and are © OBR Group, provided under the
 Apache License 2.0 together with this repository.
 
 ## External links in documentation
