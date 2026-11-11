@@ -1,0 +1,1328 @@
+{
+ "protocolVersions": [
+  "2025-06-18",
+  "2025-03-26",
+  "2024-11-05"
+ ],
+ "initialize": {
+  "capabilities": {
+   "tools": {
+    "listChanged": false
+   },
+   "resources": {
+    "listChanged": false
+   }
+  },
+  "serverInfo": {
+   "name": "artforge-ai-mcp",
+   "version": "1.0.0"
+  },
+  "instructions": "ArtForge AI MCP. For a new design call artforge_create_design once with the user prompt, the exact texts and width/height: it detects the design type (text, poster, card, table, ruled page, interior scene, character, landscape, architecture, reference image), plans, draws, saves, exports, runs pixel QA, verifies text/size/elements and returns the preview image. Pass tables as table={columns, rows} and long structured text as blocks or body; never draw cells, lines or scenes element by element. Report verification issues, QA warnings, design.missing and design.limits to the user. Binding operating skills: read artforge_tool_docs guide=\"operating-procedure\" first (tools, skill and reference map); Before composing a card, ad, banner, poster, logo, magazine, lesson, infographic or vector colour blend, call artforge_tool_docs route=\"<user request>\". Apply the selected briefs and read other relevant guides by ID (guide=\"list\" for all). Palettes, styleguides and the 25 page-grounded book rules are applied inside artforge_create_design and reported in evidence; do not search them before it. Use artforge_tool_op (op \"batch\" for several edits) only for small follow-up edits; batch returns the updated preview, so export again only when a separate format or scale is requested."
+ },
+ "toolsList": {
+  "tools": [
+   {
+    "name": "artforge_capabilities",
+    "title": "ArtForge AI MCP capabilities",
+    "description": "Report the three components (routing engine, references, drawing tool), the design skills, reference index counts, whether the drawing tool HTTP API is reachable and the available low-level operations. Call this first.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "artforge_plan_design",
+    "title": "Plan a design (phases ① ② ③)",
+    "description": "Analyse a design request, pick the design skill, resolve which reference palettes (1-3) and which single styleguide apply, extract their real colours, choose Arabic typography and return an ordered operation plan with phases ①→⑤. Only needed to inspect a plan before drawing; for a new design prefer artforge_create_design (one call). Supply text explicitly to control the copy. For model-authored scenes pass sceneSpec; read guide=model-drawing first.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "sceneSpec": {
+       "type": "object",
+       "description": "Model-authored geometry. Read guide=model-drawing and exact operation docs. Coordinates are canvas pixels; colour tokens bind selected reference roles: $color.accent/background/backgroundAlt/secondary/text. No file/network operations.",
+       "required": [
+        "version",
+        "elements",
+        "layers",
+        "operations"
+       ],
+       "properties": {
+        "version": {
+         "type": "integer",
+         "enum": [
+          1
+         ]
+        },
+        "elements": {
+         "type": "array",
+         "minItems": 1,
+         "maxItems": 80,
+         "items": {
+          "type": "object",
+          "required": [
+           "id",
+           "description"
+          ],
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "description": {
+            "type": "string",
+            "maxLength": 500
+           }
+          },
+          "additionalProperties": false
+         }
+        },
+        "layers": {
+         "type": "array",
+         "minItems": 1,
+         "maxItems": 20,
+         "items": {
+          "type": "object",
+          "required": [
+           "id"
+          ],
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false
+         }
+        },
+        "operations": {
+         "type": "array",
+         "minItems": 1,
+         "maxItems": 1200,
+         "items": {
+          "type": "object",
+          "required": [
+           "op",
+           "layer",
+           "element",
+           "params"
+          ],
+          "properties": {
+           "op": {
+            "type": "string",
+            "enum": [
+             "draw.rect",
+             "draw.ellipse",
+             "draw.line",
+             "draw.polygon",
+             "draw.path",
+             "draw.gradient",
+             "draw.brush",
+             "draw.stroke",
+             "draw.text"
+            ]
+           },
+           "layer": {
+            "type": "string"
+           },
+           "element": {
+            "type": "string"
+           },
+           "params": {
+            "type": "object"
+           },
+           "note": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false
+         }
+        },
+        "referenceApplications": {
+         "type": "array",
+         "maxItems": 20,
+         "items": {
+          "type": "object",
+          "required": [
+           "sourceId",
+           "decision",
+           "operationIndexes"
+          ],
+          "properties": {
+           "sourceId": {
+            "type": "string"
+           },
+           "decision": {
+            "type": "string"
+           },
+           "operationIndexes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+             "type": "integer",
+             "minimum": 0
+            }
+           }
+          },
+          "additionalProperties": false
+         }
+        }
+       },
+       "additionalProperties": false
+      },
+      "prompt": {
+       "type": "string",
+       "description": "The user request (Arabic or English)."
+      },
+      "headline": {
+       "type": "string",
+       "description": "Exact headline text (drawn verbatim, max 300 chars); omit to derive it from the prompt."
+      },
+      "body": {
+       "type": "string",
+       "description": "Exact body text (drawn verbatim, max 2000 chars)."
+      },
+      "kicker": {
+       "type": "string",
+       "description": "Exact eyebrow/kicker text (drawn verbatim, max 200 chars)."
+      },
+      "name": {
+       "type": "string",
+       "description": "Document name."
+      },
+      "width": {
+       "type": "number",
+       "description": "Canvas width in px (defaults to the skill canvas)."
+      },
+      "height": {
+       "type": "number",
+       "description": "Canvas height in px."
+      },
+      "skillId": {
+       "type": "string",
+       "description": "TEXT layout template only (poster, social-square, story, banner, card, cover, invitation). Do not pass it for drawings: it is ignored for people, scenes, landscapes, buildings, tables and ruled pages."
+      },
+      "palettes": {
+       "type": "number",
+       "description": "How many reference palettes to use: 1-3 (default 1: one coherent colour layer chosen by the request’s mood and subject)."
+      },
+      "designSystemId": {
+       "type": "string",
+       "description": "Force one styleguide id."
+      },
+      "books": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "Force specific knowledge book ids (see artforge_book_knowledge) instead of automatic selection."
+      },
+      "knowledgeBooks": {
+       "type": "number",
+       "description": "How many books to consult: 1-3 (default 2)."
+      },
+      "knowledgeConcepts": {
+       "type": "number",
+       "description": "How many page-bound concepts to return: 1-12 (default 5)."
+      },
+      "format": {
+       "type": "string",
+       "enum": [
+        "png",
+        "jpeg",
+        "webp"
+       ],
+       "description": "Export format for phase ⑤."
+      },
+      "headlineFont": {
+       "type": "string",
+       "description": "Headline font family (default Amiri, bundled)."
+      },
+      "bodyFont": {
+       "type": "string",
+       "description": "Body font family (default Tajawal, bundled)."
+      },
+      "designType": {
+       "type": "string",
+       "enum": [
+        "text",
+        "poster",
+        "table",
+        "ruled",
+        "scene",
+        "character",
+        "landscape",
+        "architecture",
+        "abstract",
+        "card",
+        "reference"
+       ],
+       "description": "Force the design type. Omit to let ArtForge detect it from the prompt (a room/landscape/building request is DRAWN, not turned into a text card)."
+      },
+      "elements": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "Visual elements that must appear (e.g. [\"bookshelf\",\"tv\",\"person\"]). Merged with elements detected in the prompt; any element ArtForge cannot draw is reported, never faked."
+      },
+      "lighting": {
+       "type": "string",
+       "enum": [
+        "morning",
+        "night",
+        "sunset",
+        "overcast"
+       ],
+       "description": "Scene lighting (scenes, landscapes, architecture)."
+      },
+      "abstractStyle": {
+       "type": "string",
+       "enum": [
+        "geometric",
+        "clay",
+        "fluid",
+        "splash",
+        "ornamental"
+       ],
+       "description": "Abstract art style (designType abstract): geometric = Bauhaus discs/arcs/lines, clay = soft 3D tiles/pills/spheres, fluid = silk ribbons and smoke, splash = glossy paint splashes, ornamental = decorative bloom/phoenix built on an eye path with varied curves (guide ornamental-composition). Detected from the prompt when omitted."
+      },
+      "ornamentSubject": {
+       "type": "string",
+       "enum": [
+        "bloom",
+        "phoenix"
+       ],
+       "description": "Ornamental subject: bloom (flower of plumes over waves) or phoenix. Detected from the prompt when omitted."
+      },
+      "ornamentPass": {
+       "type": "string",
+       "enum": [
+        "value",
+        "color"
+       ],
+       "description": "Ornamental pass: value = one-hue value study to judge movement, curve variety and interlace before colour; color (default) = same geometry in colour. Reuse the same prompt and seed for both passes."
+      },
+      "style": {
+       "type": "string",
+       "enum": [
+        "illustration",
+        "painterly",
+        "flat",
+        "sketch"
+       ],
+       "description": "Rendering style; painterly uses brush strokes and soft blending."
+      },
+      "table": {
+       "type": "object",
+       "description": "Structured table: {columns:[{title, format:text|number|currency|percent|date, align, decimals, currency}], rows:[[...] | {kind:data|subtotal|total|section, cells:[value | {text, colspan}]}], theme?, digits?: \"latin\"|\"arabic-indic\"}. Laid out automatically (auto widths, zebra rows, totals, RTL, pagination with repeated header)."
+      },
+      "blocks": {
+       "type": "array",
+       "items": {
+        "type": "object"
+       },
+       "description": "Long structured text for ruled/educational pages: [{type:\"heading\", level:1-3, text, colon?}, {type:\"paragraph\", text}, {type:\"list\", ordered, items:[...]}, {type:\"table\", columns, rows}]. Alternative: put the text in body using \"# \" headings, \"1-\" numbered and \"-\" bullet lines."
+      },
+      "ruled": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "object"
+        }
+       ],
+       "description": "true, or {fontSize, spacing, lineColor, marginColor, margin:false} for writing on ruled paper (baselines snapped to the rules, pixel-verified)."
+      },
+      "referenceImage": {
+       "type": "string",
+       "description": "Absolute path to a user-provided image to build the design on (colours and calm region are analysed from its pixels)."
+      },
+      "useReferences": {
+       "type": "boolean",
+       "description": "Default true. false disables the reference palettes and the book rules (used for A/B comparison)."
+      },
+      "seed": {
+       "type": "number",
+       "description": "Random seed for reproducible procedural details (books, stars, brush grain)."
+      },
+      "engine": {
+       "type": "string",
+       "enum": [
+        "auto",
+        "composer",
+        "hybrid",
+        "scene-graph"
+       ],
+       "description": "auto (default): pictures with spatial relations, several instances, or elements the composer cannot draw are placed by the scene graph while keeping the composer rendering (hybrid; pure scene-graph when the merge cannot guarantee the request); simple requests keep the composer. composer / hybrid / scene-graph force one engine. Read guide=scene-graph."
+      },
+      "artDirection": {
+       "type": "object",
+       "description": "Override art-direction decisions (guide=art-direction).",
+       "properties": {
+        "composition": {
+         "type": "string",
+         "enum": [
+          "thirds",
+          "center",
+          "symmetric"
+         ]
+        },
+        "focal": {
+         "type": "string",
+         "description": "Element id of the focal subject."
+        },
+        "lightFrom": {
+         "type": "string",
+         "enum": [
+          "left",
+          "right",
+          "top"
+         ]
+        },
+        "anatomy": {
+         "type": "string",
+         "enum": [
+          "legacy",
+          "rig-v1"
+         ],
+         "description": "Opt into articulated FK/IK anatomy; legacy remains default for compatibility."
+        },
+        "cameraYaw": {
+         "type": "number",
+         "minimum": -3.141593,
+         "maximum": 3.141593
+        },
+        "cameraFocal": {
+         "type": "number",
+         "minimum": 1,
+         "maximum": 20000
+        },
+        "world": {
+         "type": "boolean"
+        },
+        "materials": {
+         "type": "boolean"
+        },
+        "lighting": {
+         "type": "boolean"
+        },
+        "cameraHeight": {
+         "type": "number",
+         "minimum": 0.1,
+         "maximum": 100
+        },
+        "cameraPitch": {
+         "type": "number",
+         "minimum": -1.3,
+         "maximum": 1.3
+        },
+        "perspective": {
+         "type": "string",
+         "enum": [
+          "flat",
+          "one-point",
+          "two-point",
+          "three-point",
+          "aerial",
+          "top-down"
+         ]
+        },
+        "shadows": {
+         "type": "string",
+         "enum": [
+          "hard",
+          "soft",
+          "none"
+         ]
+        },
+        "temperature": {
+         "type": "string",
+         "enum": [
+          "warm",
+          "cool",
+          "neutral"
+         ]
+        }
+       },
+       "additionalProperties": false
+      },
+      "viewpoint": {
+       "type": "string",
+       "enum": [
+        "eye",
+        "top",
+        "low",
+        "closeup",
+        "wide"
+       ],
+       "description": "Camera viewpoint (detected from the prompt when omitted)."
+      },
+      "review": {
+       "type": "object",
+       "description": "Visual review for engine scene-graph: {correct: false} to report only, maxRounds 0-3 (default 2).",
+       "properties": {
+        "correct": {
+         "type": "boolean"
+        },
+        "maxRounds": {
+         "type": "number"
+        }
+       },
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "prompt"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "artforge_create_design",
+    "title": "Create a design in one call (plan + draw + save + export)",
+    "description": "ONE call is enough for any new picture or design: put the user’s own words in prompt (do not shorten or rephrase them), plus exact texts, width/height and data. Do not search books or references first and do not pass skillId for drawings: book rules, palettes and appearance (clothes colours, hair, smile, setting) are applied automatically and reported in evidence. Runs every phase: intent analysis (text, poster, card, table, ruled page, interior scene, character, landscape, architecture, abstract art: geometric/clay/fluid/splash, reference image), ONE reference colour palette chosen automatically by the request mood and subject (adherence measured on the pixels), book rules, drawing, save, export, pixel QA and verification (canvas size, every text verbatim, flowed words, table rows, requested elements). Returns planId, documentId, the exported file(s) and a preview image. Pass the exact texts, exact width/height, and structured data (table / blocks) instead of drawing cells or lines by hand. For custom compositions (infographics, UI cards, diagrams, posters with your own layout) pass the WHOLE layout as sceneSpec in this one call (up to 1200 operations, guide=model-drawing) instead of drawing shape by shape. Execution and structural checks are reported separately from visual review. Edits: send ALL changes in ONE artforge_tool_op call with op:\"batch\", params:{documentId, ops:[{op, params}, ...]}; the reply carries the updated preview. One edit per call costs ~4 s each through ChatGPT.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "sceneSpec": {
+       "type": "object",
+       "description": "Model-authored geometry. Read guide=model-drawing and exact operation docs. Coordinates are canvas pixels; colour tokens bind selected reference roles: $color.accent/background/backgroundAlt/secondary/text. No file/network operations.",
+       "required": [
+        "version",
+        "elements",
+        "layers",
+        "operations"
+       ],
+       "properties": {
+        "version": {
+         "type": "integer",
+         "enum": [
+          1
+         ]
+        },
+        "elements": {
+         "type": "array",
+         "minItems": 1,
+         "maxItems": 80,
+         "items": {
+          "type": "object",
+          "required": [
+           "id",
+           "description"
+          ],
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "description": {
+            "type": "string",
+            "maxLength": 500
+           }
+          },
+          "additionalProperties": false
+         }
+        },
+        "layers": {
+         "type": "array",
+         "minItems": 1,
+         "maxItems": 20,
+         "items": {
+          "type": "object",
+          "required": [
+           "id"
+          ],
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false
+         }
+        },
+        "operations": {
+         "type": "array",
+         "minItems": 1,
+         "maxItems": 1200,
+         "items": {
+          "type": "object",
+          "required": [
+           "op",
+           "layer",
+           "element",
+           "params"
+          ],
+          "properties": {
+           "op": {
+            "type": "string",
+            "enum": [
+             "draw.rect",
+             "draw.ellipse",
+             "draw.line",
+             "draw.polygon",
+             "draw.path",
+             "draw.gradient",
+             "draw.brush",
+             "draw.stroke",
+             "draw.text"
+            ]
+           },
+           "layer": {
+            "type": "string"
+           },
+           "element": {
+            "type": "string"
+           },
+           "params": {
+            "type": "object"
+           },
+           "note": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false
+         }
+        },
+        "referenceApplications": {
+         "type": "array",
+         "maxItems": 20,
+         "items": {
+          "type": "object",
+          "required": [
+           "sourceId",
+           "decision",
+           "operationIndexes"
+          ],
+          "properties": {
+           "sourceId": {
+            "type": "string"
+           },
+           "decision": {
+            "type": "string"
+           },
+           "operationIndexes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+             "type": "integer",
+             "minimum": 0
+            }
+           }
+          },
+          "additionalProperties": false
+         }
+        }
+       },
+       "additionalProperties": false
+      },
+      "prompt": {
+       "type": "string",
+       "description": "The user request (Arabic or English)."
+      },
+      "headline": {
+       "type": "string",
+       "description": "Exact headline text (drawn verbatim, max 300 chars); omit to derive it from the prompt."
+      },
+      "body": {
+       "type": "string",
+       "description": "Exact body text (drawn verbatim, max 2000 chars)."
+      },
+      "kicker": {
+       "type": "string",
+       "description": "Exact eyebrow/kicker text (drawn verbatim, max 200 chars)."
+      },
+      "name": {
+       "type": "string",
+       "description": "Document name."
+      },
+      "width": {
+       "type": "number",
+       "description": "Canvas width in px (defaults to the skill canvas)."
+      },
+      "height": {
+       "type": "number",
+       "description": "Canvas height in px."
+      },
+      "skillId": {
+       "type": "string",
+       "description": "TEXT layout template only (poster, social-square, story, banner, card, cover, invitation). Do not pass it for drawings: it is ignored for people, scenes, landscapes, buildings, tables and ruled pages."
+      },
+      "palettes": {
+       "type": "number",
+       "description": "How many reference palettes to use: 1-3 (default 1: one coherent colour layer chosen by the request’s mood and subject)."
+      },
+      "designSystemId": {
+       "type": "string",
+       "description": "Force one styleguide id."
+      },
+      "books": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "Force specific knowledge book ids (see artforge_book_knowledge) instead of automatic selection."
+      },
+      "knowledgeBooks": {
+       "type": "number",
+       "description": "How many books to consult: 1-3 (default 2)."
+      },
+      "knowledgeConcepts": {
+       "type": "number",
+       "description": "How many page-bound concepts to return: 1-12 (default 5)."
+      },
+      "format": {
+       "type": "string",
+       "enum": [
+        "png",
+        "jpeg",
+        "webp"
+       ],
+       "description": "Export format for phase ⑤."
+      },
+      "headlineFont": {
+       "type": "string",
+       "description": "Headline font family (default Amiri, bundled)."
+      },
+      "bodyFont": {
+       "type": "string",
+       "description": "Body font family (default Tajawal, bundled)."
+      },
+      "designType": {
+       "type": "string",
+       "enum": [
+        "text",
+        "poster",
+        "table",
+        "ruled",
+        "scene",
+        "character",
+        "landscape",
+        "architecture",
+        "abstract",
+        "card",
+        "reference"
+       ],
+       "description": "Force the design type. Omit to let ArtForge detect it from the prompt (a room/landscape/building request is DRAWN, not turned into a text card)."
+      },
+      "elements": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "Visual elements that must appear (e.g. [\"bookshelf\",\"tv\",\"person\"]). Merged with elements detected in the prompt; any element ArtForge cannot draw is reported, never faked."
+      },
+      "lighting": {
+       "type": "string",
+       "enum": [
+        "morning",
+        "night",
+        "sunset",
+        "overcast"
+       ],
+       "description": "Scene lighting (scenes, landscapes, architecture)."
+      },
+      "abstractStyle": {
+       "type": "string",
+       "enum": [
+        "geometric",
+        "clay",
+        "fluid",
+        "splash",
+        "ornamental"
+       ],
+       "description": "Abstract art style (designType abstract): geometric = Bauhaus discs/arcs/lines, clay = soft 3D tiles/pills/spheres, fluid = silk ribbons and smoke, splash = glossy paint splashes, ornamental = decorative bloom/phoenix built on an eye path with varied curves (guide ornamental-composition). Detected from the prompt when omitted."
+      },
+      "ornamentSubject": {
+       "type": "string",
+       "enum": [
+        "bloom",
+        "phoenix"
+       ],
+       "description": "Ornamental subject: bloom (flower of plumes over waves) or phoenix. Detected from the prompt when omitted."
+      },
+      "ornamentPass": {
+       "type": "string",
+       "enum": [
+        "value",
+        "color"
+       ],
+       "description": "Ornamental pass: value = one-hue value study to judge movement, curve variety and interlace before colour; color (default) = same geometry in colour. Reuse the same prompt and seed for both passes."
+      },
+      "style": {
+       "type": "string",
+       "enum": [
+        "illustration",
+        "painterly",
+        "flat",
+        "sketch"
+       ],
+       "description": "Rendering style; painterly uses brush strokes and soft blending."
+      },
+      "table": {
+       "type": "object",
+       "description": "Structured table: {columns:[{title, format:text|number|currency|percent|date, align, decimals, currency}], rows:[[...] | {kind:data|subtotal|total|section, cells:[value | {text, colspan}]}], theme?, digits?: \"latin\"|\"arabic-indic\"}. Laid out automatically (auto widths, zebra rows, totals, RTL, pagination with repeated header)."
+      },
+      "blocks": {
+       "type": "array",
+       "items": {
+        "type": "object"
+       },
+       "description": "Long structured text for ruled/educational pages: [{type:\"heading\", level:1-3, text, colon?}, {type:\"paragraph\", text}, {type:\"list\", ordered, items:[...]}, {type:\"table\", columns, rows}]. Alternative: put the text in body using \"# \" headings, \"1-\" numbered and \"-\" bullet lines."
+      },
+      "ruled": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "object"
+        }
+       ],
+       "description": "true, or {fontSize, spacing, lineColor, marginColor, margin:false} for writing on ruled paper (baselines snapped to the rules, pixel-verified)."
+      },
+      "referenceImage": {
+       "type": "string",
+       "description": "Absolute path to a user-provided image to build the design on (colours and calm region are analysed from its pixels)."
+      },
+      "useReferences": {
+       "type": "boolean",
+       "description": "Default true. false disables the reference palettes and the book rules (used for A/B comparison)."
+      },
+      "seed": {
+       "type": "number",
+       "description": "Random seed for reproducible procedural details (books, stars, brush grain)."
+      },
+      "engine": {
+       "type": "string",
+       "enum": [
+        "auto",
+        "composer",
+        "hybrid",
+        "scene-graph"
+       ],
+       "description": "auto (default): pictures with spatial relations, several instances, or elements the composer cannot draw are placed by the scene graph while keeping the composer rendering (hybrid; pure scene-graph when the merge cannot guarantee the request); simple requests keep the composer. composer / hybrid / scene-graph force one engine. Read guide=scene-graph."
+      },
+      "artDirection": {
+       "type": "object",
+       "description": "Override art-direction decisions (guide=art-direction).",
+       "properties": {
+        "composition": {
+         "type": "string",
+         "enum": [
+          "thirds",
+          "center",
+          "symmetric"
+         ]
+        },
+        "focal": {
+         "type": "string",
+         "description": "Element id of the focal subject."
+        },
+        "lightFrom": {
+         "type": "string",
+         "enum": [
+          "left",
+          "right",
+          "top"
+         ]
+        },
+        "anatomy": {
+         "type": "string",
+         "enum": [
+          "legacy",
+          "rig-v1"
+         ],
+         "description": "Opt into articulated FK/IK anatomy; legacy remains default for compatibility."
+        },
+        "cameraYaw": {
+         "type": "number",
+         "minimum": -3.141593,
+         "maximum": 3.141593
+        },
+        "cameraFocal": {
+         "type": "number",
+         "minimum": 1,
+         "maximum": 20000
+        },
+        "world": {
+         "type": "boolean"
+        },
+        "materials": {
+         "type": "boolean"
+        },
+        "lighting": {
+         "type": "boolean"
+        },
+        "cameraHeight": {
+         "type": "number",
+         "minimum": 0.1,
+         "maximum": 100
+        },
+        "cameraPitch": {
+         "type": "number",
+         "minimum": -1.3,
+         "maximum": 1.3
+        },
+        "perspective": {
+         "type": "string",
+         "enum": [
+          "flat",
+          "one-point",
+          "two-point",
+          "three-point",
+          "aerial",
+          "top-down"
+         ]
+        },
+        "shadows": {
+         "type": "string",
+         "enum": [
+          "hard",
+          "soft",
+          "none"
+         ]
+        },
+        "temperature": {
+         "type": "string",
+         "enum": [
+          "warm",
+          "cool",
+          "neutral"
+         ]
+        }
+       },
+       "additionalProperties": false
+      },
+      "viewpoint": {
+       "type": "string",
+       "enum": [
+        "eye",
+        "top",
+        "low",
+        "closeup",
+        "wide"
+       ],
+       "description": "Camera viewpoint (detected from the prompt when omitted)."
+      },
+      "review": {
+       "type": "object",
+       "description": "Visual review for engine scene-graph: {correct: false} to report only, maxRounds 0-3 (default 2).",
+       "properties": {
+        "correct": {
+         "type": "boolean"
+        },
+        "maxRounds": {
+         "type": "number"
+        }
+       },
+       "additionalProperties": false
+      },
+      "previewWidth": {
+       "type": "number",
+       "description": "Preview width in px (default 720)."
+      },
+      "preview": {
+       "type": "boolean",
+       "description": "Set false to skip the PNG preview: no image block and no data URL, the smallest and fastest response."
+      }
+     },
+     "required": [
+      "prompt"
+     ],
+     "additionalProperties": false
+    },
+    "_meta": {
+     "ui": {
+      "resourceUri": "ui://widget/artforge-preview-v1.html"
+     },
+     "openai/outputTemplate": "ui://widget/artforge-preview-v1.html",
+     "openai/toolInvocation/invoking": "Drawing the design…",
+     "openai/toolInvocation/invoked": "Design ready"
+    }
+   },
+   {
+    "name": "artforge_get_reference",
+    "title": "Read design references",
+    "description": "List or read the indexed references: palettes (extracted colours), styleguides (tone/aspect metrics), theory books (paths) and the mandatory instruction rules. Originals are preserved and never modified; no reference content is copied into designs.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "enum": [
+        "palette",
+        "design-system",
+        "book",
+        "instruction"
+       ],
+       "description": "Reference collection."
+      },
+      "id": {
+       "type": "string",
+       "description": "Exact reference id; omit to list the collection."
+      },
+      "limit": {
+       "type": "number",
+       "description": "Max rows when listing (default 20)."
+      }
+     },
+     "required": [
+      "kind"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "artforge_tool_docs",
+    "title": "Read the drawing tool documentation",
+    "description": "Search the tool documentation (docs/) for how to call drawing operations: parameters, outputs, saving/exporting, limits and errors. Pass guide to read the binding agent skills (start with guide=\"operating-procedure\"; guide=\"list\" lists them). Pass route with the user request to get only the skills that task needs, ordered, within a context budget.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "query": {
+       "type": "string",
+       "description": "Keywords, e.g. \"draw.text arabic wrap\" or \"export image\"."
+      },
+      "sectionId": {
+       "type": "string",
+       "description": "Exact section id returned by a previous search."
+      },
+      "operations": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "Operation names to fetch exact signatures for."
+      },
+      "limit": {
+       "type": "number",
+       "description": "Max sections (default 5)."
+      },
+      "guide": {
+       "type": "string",
+       "enum": [
+        "list",
+        "operating-procedure",
+        "arabic-typography",
+        "tables",
+        "color-light-shadow",
+        "drawing",
+        "references",
+        "quality-delivery",
+        "model-drawing",
+        "composition",
+        "value-and-form",
+        "figure-and-gesture",
+        "depth-and-space",
+        "materials-and-texture",
+        "nature-elements",
+        "mood-and-style",
+        "request-understanding",
+        "scene-graph",
+        "skill-routing",
+        "visual-references",
+        "art-direction",
+        "scenespec-engine",
+        "visual-review",
+        "layers-and-effects",
+        "pixels-and-retouch",
+        "editing-workflow",
+        "promotional-layouts",
+        "logo-identity",
+        "editorial-layouts",
+        "educational-layouts",
+        "vector-colour-blending",
+        "ornamental-composition"
+       ],
+       "description": "Read a registered ArtForge guide. Use list for the current catalogue."
+      },
+      "route": {
+       "type": "string",
+       "description": "The user request: returns ordered guides and the selected layout/colour guidance without planning."
+      },
+      "budgetTokens": {
+       "type": "number",
+       "description": "Context budget for route (default 9000)."
+      }
+     },
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "artforge_book_knowledge",
+    "title": "Query the nine design books (page-verified knowledge)",
+    "description": "Browse the book knowledge (research only). NOT needed before drawing: artforge_create_design already applies the book rules and reports them in evidence. Search the knowledge index built from the nine design books: page-bound concepts with their book, page, category, short quote and verification state (embedded text / OCR / caption / table of contents), plus which ArtForge operations can actually express each concept. Actions: coverage, books, search, page. Knowledge is guidance only — book text and artwork are never copied into designs.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "type": "string",
+       "enum": [
+        "coverage",
+        "books",
+        "search",
+        "page"
+       ],
+       "description": "What to return (default search)."
+      },
+      "previewPage": {
+       "type": "boolean",
+       "description": "For action=page only: render a bounded preview of the hash-verified original book page, reference-only."
+      },
+      "pagePreviewWidth": {
+       "type": "integer",
+       "minimum": 120,
+       "maximum": 900,
+       "description": "Original-page preview width; default 600."
+      },
+      "retrievalMode": {
+       "type": "string",
+       "enum": [
+        "keyword",
+        "hybrid-fts5",
+        "hybrid-local-lsa"
+       ],
+       "description": "Optional local search: keyword default; hybrid-fts5 uses BM25/RRF; hybrid-local-lsa adds corpus-only latent semantic vectors, without a neural model."
+      },
+      "query": {
+       "type": "string",
+       "description": "Design query or concept, e.g. \"reflected light\" or \"تشريح الشخصية\"."
+      },
+      "bookId": {
+       "type": "string",
+       "description": "Restrict to one book id (see action=books)."
+      },
+      "page": {
+       "type": "number",
+       "description": "Page number for action=page."
+      },
+      "books": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "Restrict search to these book ids."
+      },
+      "categories": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "Restrict search to these categories."
+      },
+      "limit": {
+       "type": "number",
+       "description": "Max results (default 8, max 20)."
+      }
+     },
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "artforge_execute_design",
+    "title": "Execute the plan (phases ④ ⑤)",
+    "description": "Run a plan created by artforge_plan_design through the drawing tool: create the document, draw every element with the real operations, add the animation, save the editable design, export an image and return an authoritative PNG preview. planId is required; pass the requestId from artforge_plan_design too so a mismatched plan is rejected.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "planId": {
+       "type": "string",
+       "description": "Plan id returned by artforge_plan_design."
+      },
+      "requestId": {
+       "type": "string",
+       "description": "Request id returned by planning; when provided it must match the plan."
+      },
+      "requestHash": {
+       "type": "string",
+       "description": "Request hash returned by planning; when provided it must match the plan."
+      },
+      "documentId": {
+       "type": "string",
+       "description": "Optional existing document id to draw into instead of creating one."
+      },
+      "previewWidth": {
+       "type": "number",
+       "description": "Preview width in px (default 720)."
+      },
+      "preview": {
+       "type": "boolean",
+       "description": "Set false to skip the PNG preview image."
+      }
+     },
+     "required": [
+      "planId"
+     ],
+     "additionalProperties": false
+    },
+    "_meta": {
+     "ui": {
+      "resourceUri": "ui://widget/artforge-preview-v1.html"
+     },
+     "openai/outputTemplate": "ui://widget/artforge-preview-v1.html",
+     "openai/toolInvocation/invoking": "Drawing the design…",
+     "openai/toolInvocation/invoked": "Design ready"
+    }
+   },
+   {
+    "name": "artforge_tool_op",
+    "title": "Call any drawing tool operation",
+    "description": "Draw or edit a demo document with the documented primitive operations, optionally in a batch. Read document info or preview. Host-file operations and custom providers are unavailable.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "op": {
+       "type": "string",
+       "description": "Operation name, e.g. object.update, or \"batch\" for many operations in one call."
+      },
+      "params": {
+       "type": "object",
+       "description": "Operation parameters (documentId is required for document operations). For batch: {documentId, ops:[{op, params}], preview?: true, previewWidth?}."
+      },
+      "ops": {
+       "type": "array",
+       "items": {
+        "type": "object"
+       },
+       "description": "Shortcut for a batch: [{op, params}, …] applied to params.documentId in one call."
+      }
+     },
+     "required": [
+      "op"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "artforge_export",
+    "title": "Export an existing design",
+    "description": "Export a demo document to PNG, JPEG or WebP and return a preview.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "documentId": {
+       "type": "string"
+      },
+      "format": {
+       "type": "string",
+       "enum": [
+        "png",
+        "jpeg",
+        "webp"
+       ]
+      },
+      "scale": {
+       "type": "number",
+       "description": "1-4"
+      },
+      "time": {
+       "type": "number",
+       "description": "Animation time in ms."
+      },
+      "static": {
+       "type": "boolean",
+       "description": "Ignore animation (true for still posters)."
+      },
+      "previewWidth": {
+       "type": "number",
+       "description": "Preview width in px (default 900)."
+      },
+      "preview": {
+       "type": "boolean",
+       "description": "Set false to skip the PNG preview image."
+      }
+     },
+     "required": [
+      "documentId"
+     ],
+     "additionalProperties": false
+    },
+    "_meta": {
+     "ui": {
+      "resourceUri": "ui://widget/artforge-preview-v1.html"
+     },
+     "openai/outputTemplate": "ui://widget/artforge-preview-v1.html",
+     "openai/toolInvocation/invoking": "Drawing the design…",
+     "openai/toolInvocation/invoked": "Design ready"
+    }
+   },
+   {
+    "name": "artforge_status",
+    "title": "Runtime status",
+    "description": "Report engine state: reference index, plans/runs on disk, drawing tool reachability and stored documents.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "artforge_artifacts",
+    "title": "Manage exported artifacts",
+    "description": "List/get metadata or remove bounded exported resources. Removal deletes only resource copy. Retention7days, max64 entries,8MiB each.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "type": "string",
+       "enum": [
+        "list",
+        "get",
+        "delete"
+       ]
+      },
+      "artifactId": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "action"
+     ],
+     "additionalProperties": false
+    }
+   }
+  ]
+ },
+ "resourcesList": {
+  "resources": [
+   {
+    "uri": "ui://widget/artforge-preview-v1.html",
+    "name": "artforge-preview",
+    "title": "ArtForge design preview",
+    "mimeType": "text/html;profile=mcp-app"
+   }
+  ]
+ },
+ "resourceTemplates": {
+  "resourceTemplates": [
+   {
+    "uriTemplate": "artforge://artifact/{artifactId}",
+    "name": "artforge-export",
+    "description": "Bounded persisted export artifact; use an ID returned by artforge_export."
+   }
+  ]
+ },
+ "widget": {
+  "uri": "ui://widget/artforge-preview-v1.html",
+  "read": {
+   "contents": [
+    {
+     "uri": "ui://widget/artforge-preview-v1.html",
+     "mimeType": "text/html;profile=mcp-app",
+     "text": "<!doctype html><html><head><meta charset=\"utf-8\">\n<style>body{margin:0;font-family:system-ui,sans-serif}img{display:block;max-width:100%;height:auto;margin:0 auto}\np{margin:6px 8px;font-size:12px;color:#666}</style></head><body><div id=\"root\"><p>…</p></div>\n<script>\n(function(){\n  var root=document.getElementById('root');\n  function pick(m){if(!m)return null;var a=m.artforge||(m._meta&&m._meta.artforge);return a&&a.previewDataUrl?a:null;}\n  function render(a){if(!a)return false;root.innerHTML='';var img=new Image();img.alt='ArtForge design';img.src=a.previewDataUrl;root.appendChild(img);\n    var e=a.exported||{};if(e.width){var p=document.createElement('p');p.textContent=e.width+'×'+e.height+' '+(e.format||'')+(e.path?' — '+e.path:'');root.appendChild(p);}return true;}\n  function fromOpenAI(){var o=window.openai;return !!(o&&render(pick(o.toolResponseMetadata)));}\n  if(!fromOpenAI()){window.addEventListener('openai:set_globals',fromOpenAI);}\n  window.addEventListener('message',function(ev){var d=ev.data;if(d&&d.method==='ui/notifications/tool-result'&&d.params)render(pick(d.params._meta));});\n})();\n</script></body></html>",
+     "_meta": {
+      "ui": {
+       "prefersBorder": true
+      },
+      "openai/widgetPrefersBorder": true
+     }
+    }
+   ]
+  }
+ }
+}

@@ -2,7 +2,7 @@
   "name": "artforge-mcp",
   "version": "1.0.0",
   "private": true,
-  "description": "ArtForge AI MCP — open-source, Arabic-first 2D drawing and design engine exposed as an MCP server, with native Arabic text shaping and high-quality Skia rendering. An OBR Group project.",
+  "description": "ArtForge AI MCP â€” Arabic-first design engine with an integrated FLUX.2 Klein 4B image generator on Cloudflare Workers AI.",
   "license": "Apache-2.0",
   "author": "OBR Group",
   "homepage": "https://obr.obr432.workers.dev/ai-plugins/",
@@ -30,6 +30,7 @@
   "scripts": {
     "setup": "npm ci --prefix drawing-tool --omit=dev --ignore-scripts",
     "start": "node server.js",
-    "test": "node --test test/smoke.test.js"
+    "test": "node --test test/smoke.test.js",
+    "test:generation": "node --test artforge-mcp/tests/generation-jobs.test.js artforge-mcp/tests/generative-image-adapter.test.js artforge-mcp/tests/cloudflare-image-provider.test.js cloudflare-gateway/test/image-generation.test.js artforge-mcp/tests/owner-generation-config.test.cjs"
   }
 }

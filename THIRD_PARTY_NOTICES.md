@@ -22,9 +22,9 @@ must not use the Reserved Font Names.
 | Package | Version | License | Notes |
 |---|---|---|---|
 | `@napi-rs/canvas` | 0.1.80 | MIT | Node-API binding to Google Skia |
-| `@napi-rs/canvas-<platform>` (one per OS/CPU, optional) | 0.1.80 | MIT | Prebuilt native binary; statically links **Skia** (BSD-3-Clause, © Google LLC) and ships ICU data `icudtl.dat` (Unicode License V3) |
+| `@napi-rs/canvas-<platform>` (one per OS/CPU, optional) | 0.1.80 | MIT | Prebuilt native binary; statically links **Skia** (BSD-3-Clause, آ© Google LLC) and ships ICU data `icudtl.dat` (Unicode License V3) |
 
-The MCP server (`server.js`, `artforge-mcp/`) uses only Node.js built-in modules.
+The core MCP server uses Node.js built-in modules. Optional image normalization reuses the existing canvas dependency. The public gateway uses `@cloudflare/workers-oauth-provider` 1.2.4 (MIT); its npm lockfile is included.
 
 ## Docker base image
 
@@ -33,10 +33,14 @@ licenses). The image is not distributed from this repository.
 
 ## Sample images
 
-The images in `docs/gallery/` were rendered by the ArtForge engine and are © OBR Group, provided under the
+The original four images in `docs/gallery/` were rendered by the ArtForge engine and are آ© OBR Group, provided under the
 Apache License 2.0 together with this repository.
 
 ## External links in documentation
 
 Some skill guides in `artforge-mcp/skills/` link to public third-party pages (for example Adobe Help and
 artist portfolios) as background reading. No content from those pages is redistributed here.
+
+## Integrated hosted image model
+
+FLUX.2 Klein 4B is supplied by Black Forest Labs through Cloudflare Workers AI. Model weights are not bundled, and provider/model terms apply separately. `neural-reading-room.png` was generated through this integration and composited with ArtForge in DEV; it is not a purely procedural drawing.

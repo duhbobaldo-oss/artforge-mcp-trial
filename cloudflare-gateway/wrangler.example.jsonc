@@ -1,0 +1,33 @@
+{
+  // New, separate Worker. It does not touch the production "obr" site Worker.
+  // Nothing here is deployed until the owner approves; KV/D1 ids are filled in after creating them (free tier).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "artforge-mcp-gateway",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  // Required by the OAuth library for CIMD (SSRF protection on client metadata fetches).
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "ai": { "binding": "AI" },
+  "kv_namespaces": [
+    { "binding": "OAUTH_KV", "id": "YOUR_OAUTH_KV_ID" }
+  ],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "artforge-gateway", "database_id": "YOUR_GATEWAY_D1_ID", "migrations_dir": "migrations" }
+  ],
+  "vars": {
+    "PUBLIC_ORIGIN": "https://artforge-mcp-gateway.obr432.workers.dev",
+    "ORIGIN_URL": "https://artforge-mcp-trial.onrender.com",
+    "SITE_URL": "https://obr.obr432.workers.dev/",
+    "ACCESS_TOKEN_TTL": "28800",
+    "ENGINE_TIMEOUT_MS": "110000",
+    "KEEP_WARM": "0",
+    "SITE_ORIGINS": "https://obr.obr432.workers.dev",
+    "PLUGIN_IDS": "artforge"
+    ,"IMAGE_GENERATION_ENABLED": "1"
+  }
+  // Secret (wrangler secret put ORIGIN_TOKEN): the same value as Render's secret file artforge_demo_token.
+  // Optional keep-warm: add "triggers": { "crons": ["*/10 * * * *"] } and KEEP_WARM=1 only with approval.
+}

@@ -319,6 +319,7 @@ function buildTools(engine) {
           name: 'ArtForge AI MCP',
           version: require('./engine/build-info').version,
           generativeImages: engine.generativeImages ? engine.generativeImages.status() : { enabled: false },
+          generationJobs: engine.generationJobs ? engine.generationJobs.status() : { enabled: false },
           // Which copy/build answers this call (lets a client confirm it reaches the intended deployment).
           build: {
             sourceSha256: require('./engine/build-info').sourceSha256,
@@ -682,6 +683,7 @@ function buildTools(engine) {
       'Edit an existing design (object.update, draw.text, …). BATCH YOUR EDITS: op:"batch" with params:{documentId, ops:[{op, params}, …]} runs up to 2000 operations in ONE call '
       + '(documentId is filled into each op) and returns the updated preview image, so no separate export call is needed. Every separate call costs seconds of round trip; never send one shape per call. '
       + 'Optional generation.status and generation.generate use the separately injected image adapter (disabled by default; MCP cannot enable it). '
+      + 'DEV optional durable generation.jobs.status/submit/get/cancel/delete/preview use a separately owner-configured local worker; submit accepts GenerationSpec v1 (version,operationId,prompt,width,height,seed,overlays). Never pass owner, provider URLs or model paths. '
       + 'For connectors with cached schemas, op=design.plan forwards params to the same authoritative design planner, including sceneSpec; execute its returned planId with artforge_execute_design. '
       + 'Pass-through to the drawing tool operations API (document.info, object.update, draw.text, export.image, animation.addKey, ...). '
       + 'Use it to edit a design after it was created; see artforge_tool_docs for parameters.',
@@ -697,6 +699,26 @@ function buildTools(engine) {
     },
     handler: async (args) => {
       if (args.op === 'generation.status') return { data: engine.generativeImages.status() };
+      if (args.op.startsWith('generation.jobs.')) {
+        const jobs = engine.generationJobs, owner = engine.generationOwner, params = args.params || {};
+        if (!jobs) throw Object.assign(new Error('GENERATION_DISABLED'), { code: 'GENERATION_DISABLED' });
+        const action = args.op.slice('generation.jobs.'.length);
+        if (action === 'status') return { data: jobs.status() };
+        if (action === 'submit') return { data: jobs.submit(owner, params) };
+        // Prevent client owner/path/model injection, including on read/delete endpoints.
+        if (Object.keys(params).some(k => k !== 'jobId') || typeof params.jobId !== 'string') throw Object.assign(new Error('INVALID_GENERATION_REQUEST'), { code: 'INVALID_GENERATION_REQUEST' });
+        if (action === 'get') return { data: jobs.get(owner, params.jobId) };
+        if (action === 'cancel') return { data: jobs.cancel(owner, params.jobId) };
+        if (action === 'delete') return { data: jobs.remove(owner, params.jobId) };
+        if (action === 'preview') {
+          const image = jobs.image(owner, params.jobId);
+          // Preview the committed composite, including exact editable Arabic, not the raw model output.
+          const final = engine.artifacts.get(image.result.artifact.id);
+          const preview = await engine.previewGeneratedImage({ bytes: final.bytes, width: image.spec.width, height: image.spec.height, mimeType: 'image/png' });
+          return { data: { ...jobs.get(owner, params.jobId), previewOf: 'saved-composite' }, images: [{ mimeType: preview.mimeType, data: preview.bytes.toString('base64') }] };
+        }
+        throw Object.assign(new Error('INVALID_GENERATION_OPERATION'), { code: 'INVALID_GENERATION_OPERATION' });
+      }
       if (args.op === 'generation.generate') {
         const generated = await engine.generativeImages.generate(args.params || {});
         const preview = await engine.previewGeneratedImage(generated);

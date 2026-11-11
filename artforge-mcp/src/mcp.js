@@ -316,7 +316,14 @@ function installProcessGuards(logger, options) {
     closing = true;
     log.warn('shutdown', Object.assign({ reason }, detail || {}));
     if (typeof opts.onShutdown === 'function') {
-      try { opts.onShutdown(reason); } catch { /* ignore */ }
+      // Optional async owners (e.g. GPU jobs) must finish cancellation before process exit.
+      let pending;
+      try { pending = opts.onShutdown(reason); } catch { /* ignore */ }
+      if (pending && typeof pending.then === 'function') {
+        const deadline = setTimeout(() => process.exit(1), 30000);
+        Promise.resolve(pending).then(() => { clearTimeout(deadline); process.exit(0); }, () => { clearTimeout(deadline); process.exit(1); });
+        return;
+      }
     }
     setTimeout(() => process.exit(0), Number(process.env.ARTFORGE_EXIT_DELAY_MS || 50));
   };

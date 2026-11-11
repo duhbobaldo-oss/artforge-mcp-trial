@@ -1,0 +1,9 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {ownerGenerationConfig}=require('../src/engine/owner-generation-config');
+function setup(t){const d=fs.mkdtempSync(path.join(os.tmpdir(),'artforge-owner-'));t.after(()=>fs.rmSync(d,{recursive:true,force:true}));return d;}
+test('absent or disabled owner configuration leaves generation disabled',t=>{const d=setup(t);assert.deepEqual(ownerGenerationConfig(d,{}),{});fs.writeFileSync(path.join(d,'owner-generation.json'),JSON.stringify({enabled:false}));assert.deepEqual(ownerGenerationConfig(d,{}),{});});
+test('invalid enabled owner configuration fails closed',t=>{const d=setup(t);fs.writeFileSync(path.join(d,'owner-generation.json'),JSON.stringify({enabled:true}));assert.throws(()=>ownerGenerationConfig(d,{}),/INVALID_OWNER_GENERATION_CONFIG/);});
+test('owner adapter uses stable persistent reservation and fixed model contract',async t=>{const d=setup(t),cli=path.join(d,'cli.js');fs.writeFileSync(cli,'');fs.writeFileSync(path.join(d,'owner-generation.json'),JSON.stringify({enabled:true,provider:'cloudflare-flux2-klein-4b',freePlanConfirmed:true,accountId:'a'.repeat(32),wranglerCli:cli}));let captured;
+class Provider{constructor(o){this.id='cloudflare-flux2-klein-4b';assert.ok(o.budgetDir.endsWith('cloudflare-budget'));}generate(s,c){captured={s,c};return Promise.resolve({bytes:Buffer.from('test')});}}
+const config=ownerGenerationConfig(d,{}, {Provider,credentials:()=>()=>{},canvas:{}});assert.equal(config.enabled,true);await config.provider.generate({prompt:'chair',width:512,height:512},{operationId:'stable'});assert.equal(captured.s.version,1);assert.equal(captured.s.operationId,'stable');const first=captured.c.jobId;await config.provider.generate({prompt:'chair',width:512,height:512},{operationId:'stable'});assert.equal(captured.c.jobId,first);});

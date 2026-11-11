@@ -43,10 +43,14 @@ function createMcpEngine(options) {
     autoStart: opts.autoStart,
     logger: createLogger('bridge', { dir: logDir }),
   });
-  const generativeImages = new GenerativeImageAdapter(Object.assign({}, opts.generativeImages || {}, {
+  const generativeImages = new GenerativeImageAdapter(Object.assign({}, opts.generativeImages || require('./engine/owner-generation-config').ownerGenerationConfig(dataDir, paths), {
     validatePng: require('./engine/png-contract').validatePng,
   }));
   const artifacts = new (require('./engine/artifact-store').ArtifactStore)({dir:path.join(dataDir,'artifacts'),allowedRoots:opts.artifactRoots || [path.join(projectRoot,'outputs'),path.join(projectRoot,'dev-runtime'),path.join(paths.drawingTool,'data','exports')]});
+  const generationJobs = new (require('./engine/generation-jobs').GenerationJobs)({
+    ...(opts.generationJobs || {}), dir: path.join(dataDir, 'generation-jobs'),
+    deliver: (spec, bytes, context) => require('./engine/generated-document').createGeneratedDocument(bridge, spec, bytes, { ...context, artifacts }),
+  });
   const pipeline = new Pipeline({ bridge, docs, library, stateDir, knowledge, logger });
 
   return {
@@ -62,6 +66,9 @@ function createMcpEngine(options) {
     bridge,
     pipeline,
     generativeImages,
+    generationJobs,
+    // Trusted application configuration, never taken from a tool request.
+    generationOwner: opts.generationJobs?.ownerId || null,
     artifacts,
     featureStatus: require('./engine/features').status,
     previewGeneratedImage: image => require('./engine/generated-preview').generatedPreview(image, require('./engine/paths').loadCanvasModule(paths.drawingTool)),

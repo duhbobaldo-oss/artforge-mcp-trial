@@ -5,3 +5,8 @@ artforge-mcp/data/*
 outputs/
 logs/
 .env*
+
+.wrangler/
+.mf/
+__pycache__/
+*owner-generation.json

@@ -1,0 +1,8 @@
+{
+  "name": "artforge-mcp-gateway",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": { "dev": "wrangler dev", "test": "node --test test/" },
+  "dependencies": { "@cloudflare/workers-oauth-provider": "1.2.4" }
+}
