@@ -2,26 +2,19 @@
   "name": "artforge-drawing-tool",
   "version": "1.0.0",
   "private": true,
-  "description": "ArtForge Drawing & Design Tool: lightweight programmatic canvas editor with Arabic RTL shaping, layers, gradients, animation, save/open and image export.",
+  "description": "ArtForge drawing engine: programmatic canvas (Skia via @napi-rs/canvas) with Arabic RTL text shaping, layers, gradients, animation and PNG/JPEG/WebP export. Used by the root server.js.",
   "main": "src/index.js",
-  "bin": {
-    "artforge-draw": "bin/artforge-draw.js"
-  },
-  "scripts": {
-    "start": "node bin/artforge-draw.js serve",
-    "test": "node --test tests/engine.test.js tests/http.test.js tests/layout.test.js tests/closure-delivery.test.js tests/pdf-text-regression.test.js tests/compositing.test.js tests/groups.test.js tests/transactions-locks.test.js tests/layer-styles.test.js tests/masks.test.js tests/editing.test.js tests/raster.test.js tests/adjustments.test.js tests/interchange.test.js tests/advanced.test.js tests/shapes.test.js",
-    "measure": "node tools/measure.js",
-    "ui-check": "node tools/ui-check.js",
-    "demo": "node bin/artforge-draw.js demo",
-    "qa:golden": "node ../qa/closure/golden.js",
-    "qa:export-parity": "node ../qa/closure/export-parity.js",
-    "qa:arabic": "node ../qa/closure/arabic-grid.js"
-  },
   "engines": {
     "node": ">=20"
   },
   "type": "commonjs",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
+  "author": "OBR Group",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/duhbobaldo-oss/artforge-mcp-trial.git",
+    "directory": "drawing-tool"
+  },
   "dependencies": {
     "@napi-rs/canvas": "0.1.80"
   }
