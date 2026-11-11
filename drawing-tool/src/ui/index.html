@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ArtForge — أداة الرسم والتصميم</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1220'/%3E%3Cpath d='M8 24 16 8l8 16z' fill='%2338bdf8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">ArtForge <span class="ver">1.0</span></div>
+    <input id="docName" class="doc-name" aria-label="اسم التصميم" placeholder="اسم التصميم">
+    <div class="actions">
+      <button id="btnNew" class="btn">جديد</button>
+      <button id="btnOpen" class="btn">فتح</button>
+      <button id="btnSave" class="btn">حفظ</button>
+      <button id="btnExport" class="btn primary">تصدير PNG</button>
+      <button id="btnEnginePreview" class="btn ghost" title="عرض مخرجات محرّك Node الفعلية">معاينة المحرّك</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="tools" id="toolbar" aria-label="أدوات الرسم">
+      <button class="tool active" data-tool="select" title="تحديد/تحريك/تحجيم/تدوير (V) — Shift للإضافة">➤</button>
+      <button class="tool" data-tool="node" title="تحرير النقاط (A) — Alt للتحويل، نقر مزدوج لإضافة نقطة">⌖</button>
+      <button class="tool" data-tool="rect" title="مستطيل (R)">▭</button>
+      <button class="tool" data-tool="ellipse" title="دائرة/بيضاوي (O)">◯</button>
+      <button class="tool" data-tool="line" title="خط (L)">╱</button>
+      <button class="tool" data-tool="polygon" title="مضلع — اسحب، Shift لشكل منتظم">⬠</button>
+      <button class="tool" data-tool="star" title="نجمة — اسحب، Shift لشكل منتظم">★</button>
+      <button class="tool" data-tool="arc" title="قوس / فطيرة / حلقة">◔</button>
+      <button class="tool" data-tool="spiral" title="حلزون">@</button>
+      <button class="tool" data-tool="pen" title="القلم (P) — انقر لنقطة، اسحب لمنحنى، انقر أول نقطة للإغلاق، Enter للإنهاء">✒</button>
+      <button class="tool" data-tool="freehand" title="قلم رصاص / رسم حر (Shift+P)">✎</button>
+      <button class="tool" data-tool="vbucket" title="سطل الطلاء للمتجهات — انقر داخل منطقة مغلقة بالخطوط">◧</button>
+      <button class="tool" data-tool="text" title="نص (T)">T</button>
+      <button class="tool" data-tool="image" title="صورة (I)">🖼</button>
+      <div class="tool-sep"></div>
+      <button class="tool" data-tool="pbrush" title="فرشاة بكسل (B) — على طبقة بكسل">🖌</button>
+      <button class="tool" data-tool="peraser" title="ممحاة بكسل (E)">⌫</button>
+      <button class="tool" data-tool="pheal" title="معالجة البقع (J) — انقر أو اسحب على العيوب">✚</button>
+      <div class="tool-sep"></div>
+      <button class="tool" id="btnUndo" title="تراجع">↶</button>
+      <button class="tool" id="btnRedo" title="إعادة">↷</button>
+      <button class="tool" id="btnZoomIn" title="تكبير">＋</button>
+      <button class="tool" id="btnZoomOut" title="تصغير">－</button>
+    </aside>
+
+    <section class="stage">
+      <div class="stage-scroll" id="stageScroll">
+        <div class="stage-inner" id="stageInner">
+          <canvas id="viewport"></canvas>
+          <canvas id="overlay"></canvas>
+        </div>
+      </div>
+      <div class="status" id="status">
+        <span id="statusTool">الأداة: تحديد</span>
+        <span id="statusPos">—</span>
+        <span id="statusZoom">تكبير 100%</span>
+        <span id="statusRev">إصدار المستند: —</span>
+      </div>
+    </section>
+
+    <aside class="panels" id="panels"></aside>
+  </main>
+
+  <input type="file" id="fileImage" accept="image/png,image/jpeg,image/webp" hidden>
+  <input type="file" id="fileDesign" accept=".json" hidden>
+
+  <dialog id="newDialog">
+    <form method="dialog" class="dialog-form">
+      <h3>لوحة جديدة</h3>
+      <label>الاسم <input id="newName" value="تصميم جديد"></label>
+      <label>العرض <input id="newWidth" type="number" value="1200" min="32" max="8192"></label>
+      <label>الارتفاع <input id="newHeight" type="number" value="800" min="32" max="8192"></label>
+      <menu>
+        <button value="cancel" class="btn ghost">إلغاء</button>
+        <button value="create" class="btn primary">إنشاء</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="previewDialog">
+    <div class="dialog-form">
+      <h3>معاينة المحرّك (Node/Skia)</h3>
+      <img id="enginePreviewImg" alt="معاينة المحرّك">
+      <small id="enginePreviewMeta"></small>
+      <menu><button class="btn" id="btnClosePreview">إغلاق</button></menu>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/core.bundle.js"></script>
+  <script src="/ui/colorpicker.js"></script>
+  <script src="/ui/editor.js"></script>
+  <script src="/ui/app.js"></script>
+</body>
+</html>

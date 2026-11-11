@@ -1,0 +1,7 @@
+node_modules/
+drawing-tool/data/
+artforge-mcp/data/*
+!artforge-mcp/data/references.index.json
+outputs/
+logs/
+.env*

@@ -1,0 +1,19 @@
+# Render Blueprint for the ArtForge customer-trial engine (Free plan, no paid add-ons).
+# The engine is the unchanged trial package; only the gateway Worker talks to it.
+services:
+  - type: web
+    name: artforge-mcp-trial
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: PORT
+        value: "4273"
+      - key: ARTFORGE_DEMO_TOKEN_FILE
+        value: /etc/secrets/artforge_demo_token
+# Add a Secret File named "artforge_demo_token" in the Render dashboard (same value as the Worker secret
+# ORIGIN_TOKEN, 32-128 chars of A-Z a-z 0-9 _ -). Without it the server refuses to start on 0.0.0.0 by design.

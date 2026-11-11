@@ -1,0 +1,18 @@
+{
+  "schema": "artforge-reference-index",
+  "version": 2,
+  "source": { "archive": null },
+  "rules": { "palettesPerDesign": 1, "designSystemsPerDesign": 1, "note": "Original demo presets; no reference files or owner corpus." },
+  "counts": { "palettes": 1, "designSystems": 1, "books": 0 },
+  "instructions": [],
+  "palettes": [{
+    "id": "palette-demo-editorial", "file": "Built-in demo palette", "tone": "dark", "contrast": 0.8, "aspect": 1.5,
+    "colors": [{"hex":"#121D30","share":0.45}, {"hex":"#233854","share":0.25}, {"hex":"#F1B652","share":0.15}, {"hex":"#FFF6E1","share":0.15}]
+  }],
+  "designSystems": [{
+    "id": "design-system-demo-editorial", "file": "Built-in demo layout preset", "tone": "dark", "aspect": 1.5, "contrast": 0.8, "edgeDensity": 0.12,
+    "colors": [{"hex":"#121D30"}, {"hex":"#F1B652"}, {"hex":"#FFF6E1"}]
+  }],
+  "books": [],
+  "licenses": []
+}
