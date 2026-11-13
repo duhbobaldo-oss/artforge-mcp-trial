@@ -89,6 +89,12 @@ function normalizeCommon(input, label) {
   return out;
 }
 
+// A shape given only a stroke is an outline: it used to be filled black, which turned rings, glasses and
+// handles into solid discs. With neither fill nor stroke the historical black fill is kept.
+function defaultShapeFill(input) {
+  return input.stroke !== undefined && input.stroke !== null ? null : '#000000';
+}
+
 function normalizeStroke(input, label) {
   const out = {};
   if (input.stroke !== undefined && input.stroke !== null) out.stroke = normalizePaint(input.stroke, `${label}.stroke`);
@@ -126,7 +132,7 @@ function normalizeObject(input, label) {
         w: number(input.w, `${objectLabel}.w`, { min: 0.01, max: 100000 }),
         h: number(input.h, `${objectLabel}.h`, { min: 0.01, max: 100000 }),
         radius: input.radius === undefined ? 0 : input.radius,
-        fill: normalizePaint(input.fill === undefined ? '#000000' : input.fill, `${objectLabel}.fill`),
+        fill: normalizePaint(input.fill === undefined ? defaultShapeFill(input) : input.fill, `${objectLabel}.fill`),
       });
       return Object.assign(obj, normalizeStroke(input, objectLabel));
     }
@@ -136,7 +142,7 @@ function normalizeObject(input, label) {
         y: number(input.y, `${objectLabel}.y`),
         w: number(input.w, `${objectLabel}.w`, { min: 0.01, max: 100000 }),
         h: number(input.h, `${objectLabel}.h`, { min: 0.01, max: 100000 }),
-        fill: normalizePaint(input.fill === undefined ? '#000000' : input.fill, `${objectLabel}.fill`),
+        fill: normalizePaint(input.fill === undefined ? defaultShapeFill(input) : input.fill, `${objectLabel}.fill`),
       });
       return Object.assign(obj, normalizeStroke(input, objectLabel));
     }
@@ -183,7 +189,7 @@ function normalizeObject(input, label) {
           y: number(p.y, `${objectLabel}.points[${i}].y`),
         })),
         closed: input.closed === undefined ? true : Boolean(input.closed),
-        fill: normalizePaint(input.fill === undefined ? '#000000' : input.fill, `${objectLabel}.fill`),
+        fill: normalizePaint(input.fill === undefined ? defaultShapeFill(input) : input.fill, `${objectLabel}.fill`),
       });
       return Object.assign(obj, normalizeStroke(input, objectLabel));
     }

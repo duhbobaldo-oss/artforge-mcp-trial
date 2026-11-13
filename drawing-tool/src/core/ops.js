@@ -2243,8 +2243,15 @@ OPS['draw.brush'] = async (params, ctx) => {
 OPS['draw.stroke'] = async (params, ctx) => {
   const doc = requireDoc(ctx, params.documentId);
   const built = require('./organic-brush').strokeObject(params);
-  const res = await addObject(ctx, doc, params, built.object);
-  return Object.assign(res, { metrics: built.metrics });
+  let outlineObjectId;
+  let fillParams = params;
+  if (built.outlineObject) {
+    // The outline goes directly under the fill, at the same place in the layer.
+    outlineObjectId = (await addObject(ctx, doc, params, built.outlineObject)).objectId;
+    if (params.index !== undefined) fillParams = Object.assign({}, params, { index: Number(params.index) + 1 });
+  }
+  const res = await addObject(ctx, doc, fillParams, built.object);
+  return Object.assign(res, { metrics: built.metrics }, outlineObjectId ? { outlineObjectId } : {});
 };
 
 OPS['draw.form'] = async (params, ctx) => {
@@ -3266,7 +3273,7 @@ const OP_DESCRIPTIONS = {
   'draw.form': 'Draw a finished, shaded form in one call (rect/ellipse/polygon/smooth path): shadow side from lightAngle, highlight, optional texture and gloss, outline.',
   batch: 'Run a list of operations in one request ({ops:[{op, params}]}); stops at the first failure and reports its index.',
   'image.analyze': 'Analyse a reference image: dominant colours, 3x3 brightness/detail grid, calmest region for text, balance.',
-  'draw.stroke': 'Organic vector stroke: smoothed, pressure/speed-tapered line as one filled path (points[{x,y,p?}], size, thinning, smoothing, taperStart, taperEnd, color).',
+  'draw.stroke': 'Organic vector stroke: smoothed, pressure/speed-tapered line as one filled path (points[{x,y,p?}], size, thinning, smoothing, taperStart, taperEnd, color; curve:true = smooth even-width spline body; outline:{color,width} = matching border).',
   'export.pdf': 'Export vector PDF through local Chromium from the editable SVG; embeds bundled Arabic fonts, preserves vectors; unavailable without a local browser.',
   'export.svg': 'Export an editable SVG: shapes, gradients, clips and Arabic text stay vector/text; only brush stamps, images, patterns and arrows are rasterised per object.',
   'qa.visibility': 'Pixel visibility of object groups: share of each group box that visibly changes when the group is removed (hidden under later layers or same colour as the background = low).',

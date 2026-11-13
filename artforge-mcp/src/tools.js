@@ -682,7 +682,7 @@ function buildTools(engine) {
     description:
       'Edit an existing design (object.update, draw.text, …). BATCH YOUR EDITS: op:"batch" with params:{documentId, ops:[{op, params}, …]} runs up to 2000 operations in ONE call '
       + '(documentId is filled into each op) and returns the updated preview image, so no separate export call is needed. Every separate call costs seconds of round trip; never send one shape per call. '
-      + 'Optional generation.status and generation.generate use the separately injected image adapter (disabled by default; MCP cannot enable it). For draw-then-generate pass params:{operationId,prompt,width,height,documentId}; the existing drawing is rendered and sent as an actual reference image. source reports its document id and SHA256. A 3D look is a raster image, not a 3D mesh. '
+      + 'Optional generation.status and generation.generate use the separately injected image adapter (disabled by default; MCP cannot enable it). For draw-then-generate pass params:{operationId,prompt,width,height,documentId}; the existing drawing is rendered and sent as an actual reference image. The result saves the full-resolution PNG (exported.path) and returns document.documentId, an editable document holding the image: add exact text there with a draw.text batch, then export. source reports its document id and SHA256. A 3D look is a raster image, not a 3D mesh. '
       + 'DEV optional durable generation.jobs.status/submit/get/cancel/delete/preview use a separately owner-configured local worker; submit accepts GenerationSpec v1 (version,operationId,prompt,width,height,seed,overlays). Never pass owner, provider URLs or model paths. '
       + 'For connectors with cached schemas, op=design.plan forwards params to the same authoritative design planner, including sceneSpec; execute its returned planId with artforge_execute_design. '
       + 'Pass-through to the drawing tool operations API (document.info, object.update, draw.text, export.image, animation.addKey, ...). '
@@ -720,11 +720,17 @@ function buildTools(engine) {
         throw Object.assign(new Error('INVALID_GENERATION_OPERATION'), { code: 'INVALID_GENERATION_OPERATION' });
       }
       if (args.op === 'generation.generate') {
-        const generated = await engine.generativeImages.generate(args.params || {});
+        const generationParams = args.params || {};
+        const generated = await engine.generativeImages.generate(generationParams);
+        // Full image to disk + editable document first; the preview is only what fits in the MCP response.
+        const delivery = await require('./engine/generated-delivery').deliverGenerated(engine, generated, generationParams);
         const preview = await engine.previewGeneratedImage(generated);
-        return { data: { width: generated.width, height: generated.height, sha256: generated.sha256, source: generated.source, preview: {width:preview.width,height:preview.height,sha256:preview.sha256},
-          delivery: { imageInResponse: true }, visualReview: 'not-reviewed' },
-          images: [{ mimeType: preview.mimeType, data: preview.bytes.toString('base64') }] };
+        return { data: { width: generated.width, height: generated.height, sha256: generated.sha256, source: generated.source,
+          exported: delivery.exported, document: delivery.document,
+          preview: { width: preview.width, height: preview.height, sha256: preview.sha256, mimeType: preview.mimeType, fullSize: preview.width === generated.width },
+          delivery: { imageInResponse: true, fileOnDisk: true, note: 'exported.path is the full-resolution PNG; the response image is a bounded preview.' }, visualReview: 'not-reviewed' },
+          images: [{ mimeType: preview.mimeType, data: preview.bytes.toString('base64') }],
+          meta: { artforge: { exported: delivery.exported, documentId: delivery.document && delivery.document.documentId } } };
       }
       if (args.op === 'design.plan') return tools.find((tool) => tool.name === 'artforge_plan_design').handler(args.params || {});
       const params = Object.assign({}, args.params || {});

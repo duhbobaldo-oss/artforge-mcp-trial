@@ -78,3 +78,15 @@ Existing tests cover rejected provider/auth responses, malformed output, timeout
 cancellation, budgets, failed receipt retention and text-only compatibility.
 
 Live-provider and connected-MCP results must be reported separately from tests.
+
+## Full-resolution delivery (2026-11-13)
+
+`generation.generate` used to return only a bounded preview and drop the provider image. It now delivers:
+
+- `exported`: the exact provider PNG written atomically to `outputs/generated-<operationId>.png`, with
+  `width`, `height`, `bytes` and `sha256`. Calling again with the same `operationId` rewrites the same file.
+- `document`: an editable document (`documentId`) whose base layer is the generated image. Add exact text with one
+  `draw.text` batch and export the composite with `artforge_export`. If document creation fails, `document.skipped`
+  explains why and the file is still delivered. Pass `editableDocument:false` to skip it.
+- `preview`: a JPEG (PNG only when JPEG encoding is unavailable) sized to fit the 300k base64 response limit.
+  `fullSize` says whether the preview is the full image.

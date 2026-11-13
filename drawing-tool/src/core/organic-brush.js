@@ -27,6 +27,24 @@ function streamline(points, amount) {
   return out;
 }
 
+/** Catmull-Rom centreline through sparse control points, sampled about every `step` px (curve mode). */
+function spline(points, step) {
+  if (points.length < 3) return points.map((p) => Object.assign({}, p));
+  const out = [];
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[Math.max(0, i - 1)]; const p1 = points[i]; const p2 = points[i + 1]; const p3 = points[Math.min(points.length - 1, i + 2)];
+    const n = Math.max(1, Math.ceil(Math.hypot(p2.x - p1.x, p2.y - p1.y) / step));
+    for (let k = 0; k < n; k += 1) {
+      const t = k / n; const t2 = t * t; const t3 = t2 * t;
+      const at = (a, b, c, d) => 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      out.push({ x: at(p0.x, p1.x, p2.x, p3.x), y: at(p0.y, p1.y, p2.y, p3.y),
+        p: p1.p === undefined || p2.p === undefined ? undefined : p1.p + (p2.p - p1.p) * t });
+    }
+  }
+  out.push(Object.assign({}, points[points.length - 1]));
+  return out;
+}
+
 function resample(points, spacing) {
   const out = [Object.assign({ d: 0 }, points[0])];
   let carried = 0; let total = 0;
@@ -67,7 +85,7 @@ function simplify(pts, tol) {
 }
 
 /** Outline polygon + metrics for a stroke. */
-function strokeOutline(input) {
+function strokeOutline(input, extra = 0) {
   assert(Array.isArray(input.points) && input.points.length >= 2, 'INVALID_POINTS', 'points needs at least two {x,y[,p]} points');
   assert(input.points.length <= 20000, 'INVALID_POINTS', 'points must be at most 20000');
   const pts = input.points.map((p, i) => {
@@ -79,7 +97,12 @@ function strokeOutline(input) {
   const smoothing = clamp(num(input.smoothing, 0.5), 0, 1);
   const taperStart = clamp(num(input.taperStart, 0.15), 0, 0.5);
   const taperEnd = clamp(num(input.taperEnd, 0.2), 0, 0.5);
-  const { points, length } = resample(streamline(pts, smoothing), Math.max(0.5, size / 4));
+  // Curve mode (curve:true, implied by outline): a spline through the control points sampled densely, so a thick
+  // body drawn from a handful of points is smooth and of even width. Without it a 68px stroke was sampled every
+  // 17px and came out lumpy, and a second, wider stroke did not follow the same centreline.
+  const curve = input.curve === true || Boolean(input.outline);
+  const spacing = curve ? Math.max(1, Math.min(size / 4, 3)) : Math.max(0.5, size / 4);
+  const { points, length } = resample(curve ? spline(pts, Math.max(2, Math.min(size / 6, 4))) : streamline(pts, smoothing), spacing);
   const hasPressure = pts.some((p) => p.p !== undefined);
   // Simulated pressure: fast segments are thinner, as with a real pen.
   let prevP = 0.5;
@@ -88,7 +111,7 @@ function strokeOutline(input) {
     if (hasPressure && p.p !== undefined) pressure = p.p;
     else {
       const q = points[Math.max(0, i - 1)];
-      const speed = Math.hypot(p.x - q.x, p.y - q.y) / (size / 4);
+      const speed = Math.hypot(p.x - q.x, p.y - q.y) / spacing;
       pressure = prevP + (clamp(1.15 - speed * 0.35, 0.2, 1) - prevP) * 0.3;
       prevP = pressure;
     }
@@ -96,7 +119,7 @@ function strokeOutline(input) {
     const ease = (t) => Math.sin((clamp(t, 0, 1) * Math.PI) / 2);
     if (taperStart > 0 && length > 0) w *= Math.max(0.05, ease(p.d / (length * taperStart)));
     if (taperEnd > 0 && length > 0) w *= Math.max(0.05, ease((length - p.d) / (length * taperEnd)));
-    return Math.max(0.25, w / 2);
+    return Math.max(0.25, w / 2) + extra;
   });
   const left = []; const right = [];
   for (let i = 0; i < points.length; i += 1) {
@@ -113,12 +136,13 @@ function strokeOutline(input) {
       return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
     });
   };
+  const capSteps = (r) => (curve ? Math.max(8, Math.ceil(r / 2)) : 6);
   const last = points.length - 1;
   const outline = left
-    .concat(cap(points[last], left[last], widths[last], 6))
+    .concat(cap(points[last], left[last], widths[last], capSteps(widths[last])))
     .concat(right.slice().reverse())
-    .concat(cap(points[0], right[0], widths[0], 6));
-  const simplified = simplify(outline, Math.max(0.15, size * 0.02));
+    .concat(cap(points[0], right[0], widths[0], capSteps(widths[0])));
+  const simplified = simplify(outline, curve ? 0.2 : Math.max(0.15, size * 0.02));
   return { outline: simplified, length: Math.round(length * 10) / 10, samples: points.length, maxWidth: Math.round(Math.max(...widths) * 20) / 10, minWidth: Math.round(Math.min(...widths) * 20) / 10 };
 }
 
@@ -126,8 +150,19 @@ function strokeOutline(input) {
 function strokeObject(params) {
   const res = strokeOutline(params);
   const r2 = (v) => Math.round(v * 100) / 100;
-  const segments = pointsToBezierSegments(res.outline.map((p) => ({ x: r2(p.x), y: r2(p.y) })), 0.5, true);
+  const toSegments = (outline) => pointsToBezierSegments(outline.map((p) => ({ x: r2(p.x), y: r2(p.y) })), 0.5, true);
+  const segments = toSegments(res.outline);
+  let outlineObject;
+  if (params.outline !== undefined && params.outline !== null) {
+    const o = params.outline;
+    assert(typeof o === 'object' && typeof o.color === 'string' && o.color, 'INVALID_OUTLINE', 'outline needs {color, width?}');
+    const width = clamp(num(o.width, 4), 0.5, 100);
+    // Same centreline, half-width + outline width everywhere, so the border is even along the body and round the tip.
+    outlineObject = { type: 'path', name: 'organic-stroke-outline', segments: toSegments(strokeOutline(params, width).outline), closed: true,
+      fill: o.color, stroke: null, opacity: params.opacity, blend: params.blend };
+  }
   return {
+    outlineObject,
     object: {
       type: 'path',
       name: params.name || 'organic-stroke',
