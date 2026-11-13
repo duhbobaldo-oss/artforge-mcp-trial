@@ -323,11 +323,35 @@ function composeLandscape(P, ctx) {
       }
     }
   }
+  // Farm fields: three crop strips (wheat, green rows, ploughed soil) on the ground plane beside the house, their
+  // edges converging slightly toward the horizon. Requested farms used to be reported NO_MOTIF and not drawn.
+  if (want('farm') && !hasSea) {
+    const top = horizon + H * 0.11; const bottom = horizon + H * 0.27;
+    const spans = houseBox
+      ? [[0, houseBox.x - W * 0.03], [houseBox.x + houseBox.w * 1.1 + W * 0.03, W]].filter(([a, b]) => b - a > W * 0.08)
+      : [[0, W]];
+    const strips = [['#d8b656', '#c29b3c', 'wheat strip'], ['#7e9f4a', '#5f8236', 'green crop rows'], ['#9a6e45', '#7a5232', 'ploughed soil']];
+    for (const [x0, x1] of spans) {
+      const lean = (x1 - x0) * 0.12 * (x0 <= 0 ? 1 : -1); // far edge drawn in toward the middle of the picture
+      strips.forEach(([fill, row, note], i) => {
+        const y0 = top + ((bottom - top) * i) / strips.length; const y1 = top + ((bottom - top) * (i + 1)) / strips.length;
+        const k0 = 1 - i / strips.length; const k1 = 1 - (i + 1) / strips.length;
+        const edge = (k) => (x0 <= 0 ? [x0, x1 - lean * k] : [x0 - lean * k, x1]);
+        const [a0, b0] = edge(k0); const [a1, b1] = edge(k1);
+        P.poly('near', [{ x: a0, y: y0 }, { x: b0, y: y0 }, { x: b1, y: y1 }, { x: a1, y: y1 }], { fill: near(fill) }, 'farm', note);
+        for (let r = 1; r <= 2; r += 1) {
+          const yy = y0 + ((y1 - y0) * r) / 3;
+          P.line('near', { x1: a0 + 4, y1: yy, x2: b0 - 4, y2: yy, stroke: near(row), strokeWidth: Math.max(1.5, H * 0.004), dash: [H * 0.012, H * 0.012] }, 'farm', 'crop row');
+        }
+      });
+    }
+  }
   if (want('house')) {
     const attrs = (houseEl && houseEl.attributes) || {};
     const box = houseBox || { x: W * 0.62, y: horizon + H * 0.15 - W * 0.1, w: W * 0.12, h: W * 0.1 };
     const lightLeft = (SKIES[lighting] || SKIES.neutral).x < 0.5;
-    const house = houseGeometry(box, { material: attrs.material, wallColor: attrs.color, night: lighting === 'night', lightFromLeft: lightLeft, seed: Math.round(P.rand(1, 1e6)) });
+    // «كوخ» / hut / cabin is a timber house unless the request names another material.
+    const house = houseGeometry(box, { material: attrs.material || (houseEl && houseEl.defaultMaterial), wallColor: attrs.color, night: lighting === 'night', lightFromLeft: lightLeft, seed: Math.round(P.rand(1, 1e6)) });
     // The hero house stands on the foreground ground (layer "near", drawn after it); a prop stays in "mid".
     const L = heroHouse ? 'near' : 'mid';
     for (const g of house.prims) {
@@ -360,6 +384,16 @@ function composeLandscape(P, ctx) {
     for (let i = 0; i < 5; i += 1) {
       const bx = W * P.rand(0.3, 0.7); const by = horizon * P.rand(0.2, 0.5); const s = P.rand(8, 16);
       P.blob('fx', [{ x: bx - s, y: by }, { x: bx - s * 0.4, y: by - s * 0.45 }, { x: bx, y: by }, { x: bx + s * 0.4, y: by - s * 0.45 }, { x: bx + s, y: by }], { fill: null, stroke: '#2a2a35', strokeWidth: 2 }, 'birds', 'bird', false);
+    }
+  }
+  // Timber fence across the foreground (posts + two rails), with a gate gap in front of a hero house.
+  if (want('fence') && !hasSea) {
+    const fy = horizon + H * 0.29; const ph = H * 0.07; const step = W * 0.045;
+    const gap = houseBox ? [houseBox.x + houseBox.w * 0.42, houseBox.x + houseBox.w * 0.68] : null;
+    const runs = gap ? [[-10, gap[0]], [gap[1], W + 10]] : [[-10, W + 10]];
+    for (const [x0, x1] of runs) {
+      for (const dy of [0.28, 0.66]) P.line('near', { x1: x0, y1: fy - ph * (1 - dy), x2: x1, y2: fy - ph * (1 - dy), stroke: near('#6b4a2e'), strokeWidth: Math.max(3, H * 0.008), cap: 'round' }, 'fence', 'fence rail');
+      for (let x = Math.max(x0, 0) + step * 0.3; x < Math.min(x1, W); x += step) P.rect('near', { x: x - W * 0.004, y: fy - ph, w: W * 0.008, h: ph, fill: near('#7a5534') }, 'fence', 'fence post');
     }
   }
   if (want('flowers') || painterly) {

@@ -47,7 +47,11 @@
 ```
 
 ## الخط العضوي (`draw.stroke`)
-`points[{x,y,p?}]`، `size` (8)، `thinning` (0.6)، `smoothing` (0.5)، `taperStart` (0.15)، `taperEnd` (0.2)، `color`. يرجع `metrics {length, maxWidth, minWidth}`. هو الخيار الصحيح للخطوط التي ستُصدَّر SVG/PDF؛ `draw.brush` يُصدَّر صورة لكل كائن.
+`points[{x,y,p?}]`، `size` (8)، `thinning` (0.6)، `smoothing` (0.5)، `taperStart` (0.15)، `taperEnd` (0.2)، `color`، `curve` (true = منحنى Catmull-Rom كثيف عبر نقاط تحكم قليلة، جسم أملس متساوي العرض)، `outline {color, width}` (حدّ مطابق بالمحور نفسه يوضع تحت التعبئة، ويفعّل `curve`). يرجع `metrics {length, samples, maxWidth, minWidth}` و`outlineObjectId` عند وجود الحد.
+
+للأجسام السميكة (ثعبان، نهر، شريط، ذيل): مرّر 5–15 نقطة تحكم مع `outline`، ولا ترسم ضربتين منفصلتين بعرضين مختلفين لتصنع حدًا: الضربتان لا تتبعان المحور نفسه فيظهر الحد متعرّجًا.
+
+الأشكال ذات الحد فقط (`stroke` بلا `fill`) في `draw.rect`/`draw.ellipse`/`draw.polygon` إطارات شفافة الداخل (نظارات، حلقات، حدود شارات). الشكل بلا تعبئة ولا حد يبقى أسود كما كان. هو الخيار الصحيح للخطوط التي ستُصدَّر SVG/PDF؛ `draw.brush` يُصدَّر صورة لكل كائن.
 
 ## الجسم المظلل (`draw.form`)
 `shape: rect|ellipse|polygon|path`، `fill`، `lightAngle` (خذه من `direction.art.lighting`)، `soft` (0–1)، `shade`، `highlight`، `texture {kind, opacity}`، `gloss`، `outline`. ينتج عناصر مسماة `name:shadow/lit/highlight/...`.

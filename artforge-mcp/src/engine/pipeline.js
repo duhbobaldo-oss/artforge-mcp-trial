@@ -591,10 +591,15 @@ class Pipeline {
       // the engine picked itself, a 49.3% vs 50% margin is not a structural defect (run_mw7uly5z): it is reported.
       const c = plan.requestContract && plan.requestContract.constraints;
       const asked = Boolean((c && Array.isArray(c.palette) && c.palette.length) || (plan.intent && (plan.intent.referenceImage || plan.intent.palette || plan.intent.paletteId)));
-      out.paletteAdherence.requiredByRequest = asked;
+      // A caller sceneSpec with its own literal colours is not drawn from the engine-chosen reference palette, so
+      // measuring it against that palette failed correct designs (blue/yellow cover vs a beige reference palette).
+      const callerColours = Boolean(plan.direction && plan.direction.engine === 'caller-scenespec');
+      out.paletteAdherence.requiredByRequest = asked && !callerColours;
+      if (callerColours) out.paletteAdherence.note = 'caller sceneSpec colours; reference palette adherence is informational';
       if (pal.family < 0.5) {
         const message = `reference palette weakly applied: only ${Math.round(pal.family * 100)}% of pixels belong to the palette family`;
-        if (asked) issues.push(message); else out.warnings = (out.warnings || []).concat([message + ' (engine-chosen palette; not a failure)']);
+        if (asked && !callerColours) issues.push(message);
+        else if (!callerColours) out.warnings = (out.warnings || []).concat([message + ' (engine-chosen palette; not a failure)']);
       }
     }
     // Ornamental structure gates (eye path, fan, curve families, hierarchy, detail density, readable overlaps).

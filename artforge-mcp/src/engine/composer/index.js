@@ -24,7 +24,7 @@ const COMPOSED_TYPES = new Set(['scene', 'character', 'landscape', 'architecture
 const SUPPORTED = {
   scene: ['desk', 'notebook', 'pen', 'bookshelf', 'tv', 'person', 'sofa', 'armchair', 'lamp', 'window', 'plant', 'rug', 'clock', 'frame', 'moon', 'stars', 'sun'],
   character: ['person', 'garden', 'trees', 'grass', 'sky', 'sun', 'clouds', 'hills', 'flowers'],
-  landscape: ['sun', 'moon', 'stars', 'clouds', 'mountains', 'hills', 'sea', 'river', 'lake', 'trees', 'palms', 'dunes', 'rocks', 'boat', 'lighthouse', 'house', 'birds', 'flowers', 'grass', 'sky', 'garden'],
+  landscape: ['sun', 'moon', 'stars', 'clouds', 'mountains', 'hills', 'sea', 'river', 'lake', 'trees', 'palms', 'dunes', 'rocks', 'boat', 'lighthouse', 'house', 'birds', 'flowers', 'grass', 'sky', 'garden', 'farm', 'fence'],
   architecture: ['building', 'tower', 'road', 'person', 'trees', 'clouds', 'sky', 'grass', 'garden'],
   abstract: ['shapes', 'lines', 'tiles', 'waves', 'spheres', 'ribbons', 'smoke', 'splash', 'speckles', 'flowers', 'birds', 'sea'],
   table: [], ruled: [], reference: [],
@@ -138,11 +138,14 @@ function compose(intent, deps) {
     default: throw new Error(`no composer for ${intent.type}`);
   }
   // Whole-image finishing chosen by the composer (haze, grade, grain…) is applied by the engine on render.
-  if (refsOn && palette.glaze && ['scene', 'character', 'landscape', 'architecture'].includes(intent.type)) {
+  // A caller-authored sceneSpec owns its colours: the unifying glaze shifted exact requested hex values (a brand
+  // orange #F4A51C no longer matched after a 10% soft-light tint), so it is applied to composer pictures only.
+  const callerColours = Boolean(input.sceneSpec);
+  if (refsOn && !callerColours && palette.glaze && ['scene', 'character', 'landscape', 'architecture'].includes(intent.type)) {
     ctx.effects = (ctx.effects || []).concat([{ type: 'tint', color: palette.glaze, amount: 0.1, blend: 'soft-light' }]);
   }
   if (ctx.effects) P.ops[0].params.effects = ctx.effects;
-  if (refsOn && ['scene', 'character', 'landscape', 'architecture'].includes(intent.type)) {
+  if (refsOn && !callerColours && ['scene', 'character', 'landscape', 'architecture'].includes(intent.type)) {
     const used = palette.mapping ? Object.entries(palette.mapping).map(([slot, m]) => `${slot}←${m.swatch} ${Math.round(m.weight * 100)}%`).join(', ') : '';
     evidence.record('limited-palette', `Materials take the closest reference swatch (OKLab): ${used}; unifying glaze ${palette.glaze}.`, [], 'palette');
   }

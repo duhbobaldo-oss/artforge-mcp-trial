@@ -70,7 +70,9 @@ const ELEMENT_LEXICON = {
   rocks: ['صخور', 'صخره', 'rocks', 'rock'],
   boat: ['قارب', 'سفينه', 'مركب', 'boat', 'ship'],
   lighthouse: ['منارة', 'منارة', 'lighthouse'],
-  house: ['بيت', 'منزل', 'كوخ', 'house', 'cabin'],
+  house: ['بيت', 'منزل', 'كوخ', 'اكواخ', 'house', 'cabin', 'hut', 'cottage', 'chalet'],
+  farm: ['مزرعه', 'مزارع', 'حقل', 'حقول', 'farm', 'farmland', 'crop field', 'wheat field'],
+  fence: ['سياج', 'سور خشبي', 'fence'],
   birds: ['طيور', 'طائر', 'birds'],
   flowers: ['زهور', 'ورود', 'ازهار', 'flowers'],
   grass: ['عشب', 'حشائش', 'grass', 'meadow'],
@@ -185,6 +187,7 @@ function taMarbutaTokens(text, split) {
 
 const AR_PREFIXES = ['وبال', 'وال', 'بال', 'كال', 'فال', 'لل', 'ال', 'و', 'ف', 'ب', 'ل', 'ك'];
 const AR_SUFFIXES = ['', 'ات', 'ين', 'ون', 'ان', 'ه', 'ها', 'هم', 'ي', 'يه', 'يات'];
+const NISBA_SUFFIXES = ['ي', 'يه', 'يات'];
 
 /** Word-level match so "تل" never matches inside "تلفزيون" and "صباح" never inside "مصباح". */
 function tokenMatches(token, word, endsWithTaMarbuta) {
@@ -195,6 +198,9 @@ function tokenMatches(token, word, endsWithTaMarbuta) {
     const suffix = stem.slice(word.length);
     // A final «ة» is the feminine ending of a different word (كتابة، شمسية), not the pronoun «ه».
     if (endsWithTaMarbuta && suffix && suffix.endsWith('ه')) continue;
+    // The article «ال» never takes the possessive «ي» («السحابي» cannot mean "my cloud"): after it,
+    // «ي/يه/يات» form a relational adjective (السحابي = cloud-based, الشمسي = solar), not the object.
+    if (prefix.endsWith('ال') && NISBA_SUFFIXES.includes(suffix)) continue;
     if (AR_SUFFIXES.includes(suffix)) return true;
     // Indefinite accusative «قاربًا»/«برجًا»: the tanween is stripped, leaving a final alif.
     if (suffix === 'ا' && word.length >= 3 && !word.endsWith('ا')) return true;
@@ -271,6 +277,15 @@ function analyzeIntent(prompt, input) {
     const found = hits(normalized, words, prompt);
     if (found.length) elements.push({ id, matched: found });
   }
+  // "palm trees" names palms only: the word «trees» inside it must not also request leafy trees (a cover with
+  // palms was failed for "trees not drawn"). Trees stay when they are named on their own elsewhere.
+  if (elements.some((e) => e.id === 'palms')) {
+    const i = elements.findIndex((e) => e.id === 'trees');
+    if (i >= 0 && !hits(normalized.replace(/\bpalm\s+trees?\b/g, ' '), ELEMENT_LEXICON.trees, prompt).length) elements.splice(i, 1);
+  }
+  // A hut/cabin is a timber house by default (the composer drew a plastered modern house for «كوخ»).
+  const hut = elements.find((e) => e.id === 'house' && e.matched.some((w) => ['كوخ', 'اكواخ', 'cabin', 'hut', 'chalet'].includes(w)));
+  if (hut) hut.defaultMaterial = 'wood';
   if (elements.some(e => e.id === 'diningTable')) { const i = elements.findIndex(e => e.id === 'coffeeTable'); if (i >= 0 && !hits(normalized, ['طاوله قهوه','coffee table','side table'], prompt).length) elements.splice(i, 1); }
   // Ambiguous short words match a whole token only (مكتب ≠ مكتبه).
   for (const [id, words] of Object.entries(EXACT_ELEMENT_WORDS)) {
@@ -313,7 +328,7 @@ function analyzeIntent(prompt, input) {
   const furniture = ['bookshelf', 'tv', 'sofa', 'armchair', 'lamp', 'window', 'rug', 'coffeeTable', 'frame', 'clock'].filter(has).length;
   if (furniture >= 2) { scores.scene += 2; evidence.scene.push(`${furniture} furniture elements`); }
   if (has('person') && furniture === 0 && !scores.landscape && !scores.architecture) { scores.character += 1; evidence.character.push('person without setting'); }
-  const nature = ['mountains', 'sea', 'river', 'lake', 'trees', 'palms', 'dunes', 'rocks', 'hills'].filter(has).length;
+  const nature = ['mountains', 'sea', 'river', 'lake', 'trees', 'palms', 'dunes', 'rocks', 'hills', 'farm'].filter(has).length;
   if (nature >= 2) { scores.landscape += 1; evidence.landscape.push(`${nature} nature elements`); }
   if (has('building') || has('tower')) { scores.architecture += 1; evidence.architecture.push('building element'); }
   // A house/cabin/lighthouse or a garden outside a room is an exterior picture. Without this rule
